@@ -26,6 +26,8 @@ int main(int argc, char *argv[]) {
 			exit(1);
 		}
 	}
+	
+	/*Check if non option arguments passed: TODO*/
 
 	/*We need to handle non-option arguments passed to ls*/
 	
@@ -34,15 +36,31 @@ int main(int argc, char *argv[]) {
 		/*Check if non-option argument is file or directory*/
 	
 		if (isfile(argv[index])) {
-		}
-		if (isdirectory(argv[index])) {
+			
+			/*Print file name  (in long format if -l passed in)*/
+
+			if (lflag == 1) {
+
+				/*TODO: print out long format using stat*/
+
+			} else {
+				printf("%s", argv[index]);
+			}
+		} else if (isdirectory(argv[index])) {
+
+			/*Open directory?*/
+			/*Read contents*/
+			/*format depending on -a and -l*/
+				/*print out contents - subfolders and files with time*/
+			/*Close directory*/
+			/*exit gracefully*/
+				/*TODO*/
 		}
 	}
 	
-	/*
-	 * THE FOLLOWING CONDITIONALS ARE TO BE MOVED: 
-	 * Depending on what flags we passed, we expect certain unique behavior
-	 * */
+	/*if no non option arguments, proceed with ls of current directory: TODO - turn to else statement*/
+
+	/* Depending on what flags we passed, we expect certain unique behavior*/
 	
 	if (aflag) {
 	
