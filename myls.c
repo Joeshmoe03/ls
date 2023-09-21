@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
+//#include <errno.h>
 
 int isfile(const char* path) {
 	struct stat statbuff;
@@ -30,6 +31,7 @@ int main(int argc, char *argv[]) {
 	int aflag = 0, lflag = 0;
 	int index;	
 	struct stat statbuff;
+	//opterr = 0; disables automated error message
 	
 	/*check arguments: use getopt() to parse and set flags depending on option*/ 	
 	
@@ -42,7 +44,8 @@ int main(int argc, char *argv[]) {
 			lflag = 1;
 			break;
 		default:
-			fprintf(stderr, "Error, bad option arg: %s\n", optarg);
+			//getopt handles error by default, no need to code error message unless we want to explicitly handle it
+			fprintf(stderr, "%s", "Error!");
 			exit(1);
 		}
 	}
@@ -51,6 +54,7 @@ int main(int argc, char *argv[]) {
 
 	/*We need to handle non-option arguments passed to ls*/
 	
+	//Start loop after all option arguments are read
 	for (index = optind; index < argc; index++) {
 	
 		/*Check if non-option argument is file or directory*/
@@ -70,6 +74,21 @@ int main(int argc, char *argv[]) {
 
 			/*Open directory?*/
 			/*Read contents*/
+
+			dirp = opendir("");
+            if (dirp == NULL)
+                	return (ERROR);
+            len = strlen(name);
+            while ((dp = readdir(dirp)) != NULL) {
+                   if (dp->d_namlen == len && strcmp(dp->d_name, name) == 0) {
+                           (void)closedir(dirp);
+                           return (FOUND);
+                   }
+           }
+           (void)closedir(dirp);
+           return (NOT_FOUND);
+
+			
 			/*format depending on -a and -l*/
 				/*print out contents - subfolders and files with time*/
 			/*Close directory*/
