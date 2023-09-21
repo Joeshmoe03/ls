@@ -5,6 +5,26 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
+int isfile(const char* path) {
+	struct stat statbuff;
+
+	if (stat(path, &statbuff) != 0) {
+		fprintf(stderr, "Error, %s is not a valid file or directory", path);
+		exit(3);
+	}
+	return S_ISREG(statbuff.st_mode);
+}
+
+int isdirectory(const char* path) {
+	struct stat statbuff;
+
+	if (stat(path, &statbuff) != 0) {
+		fprintf(stderr, "Error, %s is not a valid file or directory", path);
+		exit(2);
+	}
+	return S_ISDIR(statbuff.st_mode);
+}
+
 int main(int argc, char *argv[]) {
 	int opt;
 	int aflag = 0, lflag = 0;
@@ -35,7 +55,7 @@ int main(int argc, char *argv[]) {
 	
 		/*Check if non-option argument is file or directory*/
 	
-		if (isfile(argv[index])) {
+		if (isfile(argv[index]) == 1) {
 			
 			/*Print file name  (in long format if -l passed in)*/
 
@@ -44,9 +64,9 @@ int main(int argc, char *argv[]) {
 				/*TODO: print out long format using stat*/
 
 			} else {
-				printf("%s", argv[index]);
+				printf("%s\n", argv[index]);
 			}
-		} else if (isdirectory(argv[index])) {
+		} else if (isdirectory(argv[index]) == 1) {
 
 			/*Open directory?*/
 			/*Read contents*/
@@ -75,22 +95,3 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-int isdirectory(const char* path) {
-	struct stat statbuff;
-
-	if (stat(path, &statbuff) != 0) {
-		fprintf(stderr, "Error, %s is not a valid file or directory", path);
-		exit(2);
-	}
-	return S_ISDIR(statbuff.st_mode);
-}
-
-int isfile(const char* path) {
-	struct stat statbuff;
-
-	if (stat(path, &statbuff) != 0) {
-		fprintf(stderr, "Error, %s is not a valid file or directory", path);
-		exit(3);
-	}
-	return S_ISREG(statbuff.st_mode);
-}
