@@ -4,7 +4,14 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <dirent.h>
 //#include <errno.h>
+
+
+//TODO: Get rid of functions!!!
+//EXIT IS NOT ACCEPTABLE FOR NON-OPTION ARGUMENTS BEING WRONG
+//stat is a system call so we don't want to repeat it
 
 int isfile(const char* path) {
 	struct stat statbuff;
@@ -32,8 +39,13 @@ int main(int argc, char *argv[]) {
 	int index;	
 	struct stat statbuff;
 	//opterr = 0; disables automated error message
+
+
+	//TODO: Combine the checking of options and non options into one loop !!! by looping through all args and categorizing
+	//TODO: Change flag names
 	
 	/*check arguments: use getopt() to parse and set flags depending on option*/ 	
+	//EXIT IS ACCEPTABLE FOR OPTION ARGUMENTS BEING WRONG
 	
 	while ((opt = getopt(argc, argv, "al")) != -1) {
 		switch(opt) {
@@ -54,12 +66,13 @@ int main(int argc, char *argv[]) {
 
 	/*We need to handle non-option arguments passed to ls*/
 	
-	//Start loop after all option arguments are read
 	for (index = optind; index < argc; index++) {
+
+		name = argv[index] 
 	
 		/*Check if non-option argument is file or directory*/
 	
-		if (isfile(argv[index]) == 1) {
+		if (isfile(name) == 1) {
 			
 			/*Print file name  (in long format if -l passed in)*/
 
@@ -70,14 +83,16 @@ int main(int argc, char *argv[]) {
 			} else {
 				printf("%s\n", argv[index]);
 			}
-		} else if (isdirectory(argv[index]) == 1) {
+		} else if (isdirectory(name) == 1) {
 
-			/*Open directory?*/
-			/*Read contents*/
 
-			dirp = opendir("");
+			/*Open directory*/
+			dirp = opendir(name);
             if (dirp == NULL)
                 	return (ERROR);
+
+			/*Read contents*/
+
             len = strlen(name);
             while ((dp = readdir(dirp)) != NULL) {
                    if (dp->d_namlen == len && strcmp(dp->d_name, name) == 0) {
