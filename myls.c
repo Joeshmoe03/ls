@@ -6,7 +6,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
-//#include <errno.h>
+#include <errno.h>
 
 
 //TODO: Get rid of functions!!!
@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
 			break;
 		default:
 			//getopt handles error by default, no need to code error message unless we want to explicitly handle it
-			fprintf(stderr, "%s", "Error!");
+			fprintf(stderr, "%s", "");
 			exit(1);
 		}
 	}
@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
 	
 	for (index = optind; index < argc; index++) {
 
-		name = argv[index] 
+		char* name = argv[index];
 	
 		/*Check if non-option argument is file or directory*/
 	
@@ -85,23 +85,34 @@ int main(int argc, char *argv[]) {
 			}
 		} else if (isdirectory(name) == 1) {
 
+			DIR *dirp; //openddir returns this type, which is passed on to readdir
+			struct dirent *dsp; //readdir returns this type
 
 			/*Open directory*/
-			dirp = opendir(name);
-            if (dirp == NULL)
-                	return (ERROR);
+			dirp = opendir(name); // . for current directory
+            if (dirp == NULL) {
+				fprintf(stderr, "%s: No such file or directory:", name);
+				//exit?
+			}
 
 			/*Read contents*/
 
-            len = strlen(name);
-            while ((dp = readdir(dirp)) != NULL) {
-                   if (dp->d_namlen == len && strcmp(dp->d_name, name) == 0) {
-                           (void)closedir(dirp);
-                           return (FOUND);
-                   }
+			errno = 0;
+            while ((dsp = readdir(dirp)) != NULL && errno == 0) {
+				printf("%s \n", dsp->d_name);
            }
-           (void)closedir(dirp);
-           return (NOT_FOUND);
+
+		   if (errno != 0){
+			//error reading directory
+		   }
+
+		   else {
+			//read correctly
+			//close it
+		   }
+		   
+
+		   //then format depending on -a and -l
 
 			
 			/*format depending on -a and -l*/
@@ -116,16 +127,16 @@ int main(int argc, char *argv[]) {
 
 	/* Depending on what flags we passed, we expect certain unique behavior*/
 	
-	if (aflag) {
+	// if (aflag) {
 	
-		/*list all*/
+	// 	/*list all*/
 	
-	} 
-	if (lflag) { 
+	// } 
+	// if (lflag) { 
 	
-		/*list long*/
+	// 	/*list long*/
 	
-	}		
-	return 0;
+	// }		
+	// return 0;
 }
 
