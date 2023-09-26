@@ -37,6 +37,8 @@ int main(int argc, char *argv[]) {
 	if (optind < argc) {
 		flags |= NONOPT;
 	}
+	
+	/*loop interior for both nonopt and nonoptless cases*/
 
 	index = optind;
 	do {
@@ -47,12 +49,16 @@ int main(int argc, char *argv[]) {
 		}
 		
 		if (stat(path, &statbuff) != -1) {
-			//TODO: ERROR CHECKING WITH STATBUFF
 			if (S_ISDIR(statbuff.st_mode)) {
-			//TODO: DO DIRECTORY THINGS: OPEN DIR, READ DIR, LIST OUT CONTENTS, CLOSE
+				//TODO: DO DIRECTORY THINGS: OPEN DIR, READ DIR, LIST OUT CONTENTS, CLOSE
+				DIR *dirp;
+				dirp = opendir(path);
+
 			} else if (S_ISREG(statbuff.st_mode)) {
-			//TODO: do file things
+				//TODO: do file things
 			}
+		} else {
+			fprintf(stderr, "Error, %s is not a valid file or directory", path);
 		}
 
 		switch(flags) {
@@ -61,8 +67,7 @@ int main(int argc, char *argv[]) {
 			case flags && LISTLONG:
 				break;
 		}
-		/*loop interior for both nonopt and nonoptless cases*/
-
+		
 		index++;
 	} while (index < argc);
 
