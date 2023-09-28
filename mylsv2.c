@@ -4,28 +4,58 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
-//#include <errno.h>
-
-#define NONOPT 1
-#define SHOWHIDDEN 2
-#define LISTLONG 4
+#include <errno.h>
+#include <dirent.h>
+#include <sys/types.h>
+#include <string.h>
 
 int main(int argc, char *argv[]) {
+
+	/*Set our flags*/
+	
+	int multiplenonopt = 0; //NOTE: if your are wondering what this does, it helps format when printing later
+	int nonopt = 0;
+	int showhidden = 0;
+	int listlong = 0;
+	
+	/*Setup for parsing and iterating non-options afterwards*/
+
 	int opt;
-	int flags = 0;
-	int index;
+	int argindex;
+	
+	/*Setup for obtaining info on a file/directory path*/
+
 	struct stat statbuff;
 	char* path;
 	
+	/*Setup for opening directories*/
+
+	DIR *dirp;
+	struct dirent *direntp;
+
+	/*Setup for reading and saving directories into a buffer*/
+	
+	int dnamessize = 100;
+	int dnamesindex = 0;
+	int dnamescount = 0;
+
+	/*Our buffer is set with a default size that can be doubled if needed later*/
+
+	char** dnames = (char**)malloc(dnamessize * sizeof(char*));
+		if (dnames == NULL) {
+			perror("malloc");
+			exit(2);
+		}
+
 	/*check arguments: use getopt() to parse and set flags depending on option*/
 
 	while ((opt = getopt(argc, argv, "al")) != -1) {
 		switch(opt) {
 			case 'a':
-				flags |= SHOWHIDDEN;
+				showhidden = 1;
 				break;
 			case 'l':
-				flags |= LISTLONG;
+				listlong = 1;
 				break;
 			default:
 				exit(1);
@@ -35,41 +65,62 @@ int main(int argc, char *argv[]) {
 	/*if some argument(s) unparsed by getopt, there exist non-option arguments*/
 
 	if (optind < argc) {
-		flags |= NONOPT;
+		nonopt = 1;
+	}
+
+	if ((argc - optind) > 1) {
+		multiplenonopt = 1;
 	}
 	
 	/*loop interior for both nonopt and nonoptless cases*/
 
-	index = optind;
+	argindex = optind;
 	do {
-		if (flags && NONOPT) {
-			path = argv[index];
+		if (nonopt) {
+			path = argv[argindex];
 		} else {
 			path = ".";
 		}
-		
+
 		if (stat(path, &statbuff) != -1) {
+			dnamesindex = 0;
+			dnamescount = 0;
+
+			/*If our current path is a directory, open, read + save info to buffer, close dir*/
+
 			if (S_ISDIR(statbuff.st_mode)) {
-				//TODO: DO DIRECTORY THINGS: OPEN DIR, READ DIR, LIST OUT CONTENTS, CLOSE
-				DIR *dirp;
 				dirp = opendir(path);
+				while ((direntp = readdir(dirp)) != NULL && errno == 0) {
+					
+					/*If our old buffer is full, lets make a new resized one*/
+
+					if (dnamesindex >= dnamessize) {
+						dnamessize *= 2;
+						char** newdnames = (char**)realloc(dnames, dnamessize);
+						dnames = newdnames;
+					}
+					dnames[dnamescount++] = strdup(direntp->d_name);
+				}
+				
+				closedir(dirp);
+
+			/*Otherwise treat it as a file + save info*/
 
 			} else if (S_ISREG(statbuff.st_mode)) {
-				//TODO: do file things
+				dnames[dnamescount++] = path;
 			}
-		} else {
-			fprintf(stderr, "Error, %s is not a valid file or directory", path);
-		}
 
-		switch(flags) {
-			case flags && SHOWHIDDEN:
-				break;
-			case flags && LISTLONG:
-				break;
+			/*Handle formatted printing*/
+			
+			for (dnamesindex = 0; dnamesindex < dnamescount; dnamesindex++) {
+				printf("%s\n", dnames[dnamesindex]);
+			}
 		}
 		
-		index++;
-	} while (index < argc);
+		argindex++;
+	} while (argindex < argc);
+
+	free(dnames);
 
 
 
