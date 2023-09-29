@@ -40,7 +40,8 @@ int main(int argc, char *argv[]) {
 	int dnamescount = 0;
 
 	/*Our buffer is set with a default size that can be doubled if needed later*/
-
+	
+	char** newdnames;
 	char** dnames = (char**)malloc(dnamessize * sizeof(char*));
 		if (dnames == NULL) {
 			perror("malloc");
@@ -94,12 +95,13 @@ int main(int argc, char *argv[]) {
 					
 					/*If our old buffer is full, lets make a new resized one*/
 
-					if (dnamesindex >= dnamessize) {
+					if (dnamescount >= dnamessize) {
 						dnamessize *= 2;
-						char** newdnames = (char**)realloc(dnames, dnamessize);
+						newdnames = (char**)realloc(dnames, dnamessize);
 						dnames = newdnames;
 					}
-					dnames[dnamescount++] = strdup(direntp->d_name);
+				
+				dnames[dnamescount++] = strdup(direntp->d_name); //TODO: CHECK
 				}
 				
 				closedir(dirp);
@@ -116,7 +118,11 @@ int main(int argc, char *argv[]) {
 				printf("%s\n", dnames[dnamesindex]);
 			}
 		}
-		
+
+		/*We set errno = 0 so that we can call stat and print ls without a problem if
+  		  the previous path was garbage*/
+
+		errno = 0;	
 		argindex++;
 	} while (argindex < argc);
 
