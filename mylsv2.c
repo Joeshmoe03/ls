@@ -126,12 +126,14 @@ int main(int argc, char *argv[]) {
 						direntstatsp = newdirentstatsp;
 					}
 				
-				/*Only if we are printing long format do we call stat*/
+				/*Only if we are printing long format do we call stat and add to buff*/
 
 				if (listlong == 1) {
 					stat(direntp->d_name, &statbuff);
 					direntstatsp[dbuffcount].statbuff = statbuff; //TODO: WIP
 				}
+
+					/*We save the name of the entry to our buffer and increment the count*/
 
 					direntstatsp[dbuffcount++].dname = strdup(direntp->d_name);
 				
@@ -143,12 +145,14 @@ int main(int argc, char *argv[]) {
 
 			} else if (S_ISREG(statbuff.st_mode)) {
 				
-				/*Only if we are printing long format do we call stat*/
+				/*Only if we are printing long format do we call stat and save to buff*/
 
 				if (listlong == 1) {
-					stat(direntp->d_name, &statbuff);
+					stat(path, &statbuff);
 					direntstatsp[dbuffcount].statbuff = statbuff; //TODO: WIP
 				}
+
+				/*Finally, we add the entry name to buff and increment count of buff*/
 
 				direntstatsp[dbuffcount++].dname = path;
 			} 
@@ -169,10 +173,14 @@ int main(int argc, char *argv[]) {
 				if (listlong == 0) {
 					printf("%s\n", entryname);
 				} else if (listlong == 1) {
+					printf("%ld\n", direntstatsp[dbuffindex].statbuff.st_size);
 					//TODO: PRINT LONG FORMAT
 				}
 			}
 		} else {
+
+			/*Stat did not recognize the path, so it does not exist*/
+
 			fprintf(stderr, "%s is not a recognized file or directory...\n", path);
 		}
 
@@ -184,5 +192,9 @@ int main(int argc, char *argv[]) {
 	} while (argindex < argc);
 
 	//TODO: FREE DNAME via iter AS IT IS CHAR POINTER and not stored in buffer directly
+	for (dbuffindex = 0; dbuffindex < dbuffcount; dbuffindex++) {
+		free(direntstatsp[dbuffindex].dname);
+	}
+
 	free(direntstatsp);
 }
