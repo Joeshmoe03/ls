@@ -182,7 +182,6 @@ int main(int argc, char *argv[]) {
 				if (listlong == 0) {
 					printf("%s\n", entryname);
 				} else if (listlong == 1) {
-					//printf("%ld\n", direntstatsp[dbuffindex].statbuff.st_size);
 					printf((S_ISDIR(direntstatsp[dbuffindex].statbuff.st_mode) ? "d" : "-"));
 
 					//user
@@ -218,7 +217,7 @@ int main(int argc, char *argv[]) {
                     strftime(timestr, sizeof(timestr), "%b %d %R ", tm);
                     printf(" %s", timestr);
 					
-					printf(" %s", entryname);
+					printf("%s", entryname);
 
 					printf("\n");
 
@@ -243,7 +242,7 @@ int main(int argc, char *argv[]) {
 
 	//for (dbuffindex = 0; dbuffindex < dbuffcount; dbuffindex++) {
 	//	free(direntstatsp[dbuffindex].dname);
-	//}
+	//} //TODO: FIX ITERATION OF BUFFER FOR FREEING STRINGS TO PREVENT MEM LEAK
 
 	free(direntstatsp);
 }
