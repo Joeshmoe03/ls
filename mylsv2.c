@@ -1,4 +1,4 @@
-/*ls.c*/
+/*myls.c*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,11 +9,18 @@
 #include <sys/types.h>
 #include <string.h>
 
+/*A buffer containing several of these structs will allow us to track file and directory info for later use*/
+
+struct direntstat {
+	char* dname;
+	struct stat statbuff;	
+};
+
 int main(int argc, char *argv[]) {
 
 	/*Set our flags*/
 	
-	int multiplenonopt = 0; //NOTE: if your are wondering what this does, it helps format when printing later
+	//int multiplenonopt = 0; //TODO: if your are wondering what this does, it helps format when printing later
 	int nonopt = 0;
 	int showhidden = 0;
 	int listlong = 0;
@@ -30,23 +37,27 @@ int main(int argc, char *argv[]) {
 	
 	/*Setup for opening directories*/
 
-	DIR *dirp;
+	DIR* dirp;
 	struct dirent *direntp;
 
-	/*Setup for reading and saving directories into a buffer*/
-	
-	int dnamessize = 100;
-	int dnamesindex = 0;
-	int dnamescount = 0;
+	/*Setup for tracking our buffer containing save entry info*/
+		
+	int dbuffsize = 100;
+	int dbuffcount = 0;
+	int dbuffindex = 0;
 
-	/*Our buffer is set with a default size that can be doubled if needed later*/
-	
-	char** newdnames;
-	char** dnames = (char**)malloc(dnamessize * sizeof(char*));
-		if (dnames == NULL) {
-			perror("malloc");
-			exit(2);
-		}
+	/*for printing out directory entries*/
+
+	char* entryname;
+
+	/*Our buffer is set with a default size that can be doubled if needed later + checks if failed*/
+
+	struct direntstat *newdirentstatsp;
+	struct direntstat *direntstatsp = (struct direntstat*)malloc(dbuffsize * sizeof(struct direntstat));
+	if (direntstatsp == NULL) {
+		perror("malloc");
+		exit(1);
+	}
 
 	/*check arguments: use getopt() to parse and set flags depending on option*/
 
@@ -69,23 +80,28 @@ int main(int argc, char *argv[]) {
 		nonopt = 1;
 	}
 
-	if ((argc - optind) > 1) {
-		multiplenonopt = 1;
-	}
+	//if ((argc - optind) > 1) { //TODO:FIX FOR LATER FEATURE
+	//	multiplenonopt = 1;
+	//}
 	
-	/*loop interior for both nonopt and nonoptless cases*/
+	/*loop interior for both nonopt and nonoptless cases. 
+ 	 *We iterate through rest of args (or do this loop at least once)*/
 
 	argindex = optind;
 	do {
-		if (nonopt) {
+
+		/*were any nonopts passed as arguments? If so, use the corresponding arg. If not, current dir*/
+
+		if (nonopt == 1) {
 			path = argv[argindex];
 		} else {
 			path = ".";
 		}
 
 		if (stat(path, &statbuff) != -1) {
-			dnamesindex = 0;
-			dnamescount = 0;
+			dbuffsize = 100;
+			dbuffindex = 0;
+			dbuffcount = 0;
 
 			/*If our current path is a directory, open, read + save info to buffer, close dir*/
 
@@ -95,13 +111,30 @@ int main(int argc, char *argv[]) {
 					
 					/*If our old buffer is full, lets make a new resized one*/
 
-					if (dnamescount >= dnamessize) {
-						dnamessize *= 2;
-						newdnames = (char**)realloc(dnames, dnamessize);
-						dnames = newdnames;
+					if (dbuffcount >= dbuffsize) {
+						dbuffsize *= 2;
+						newdirentstatsp = (struct direntstat*)realloc(direntstatsp, dbuffsize);
+						
+						/*Lets double check success on realloc*/
+
+						if (newdirentstatsp == NULL) {
+							free(direntstatsp);
+							perror("realloc");
+							exit(1);
+						}
+
+						direntstatsp = newdirentstatsp;
 					}
 				
-				dnames[dnamescount++] = strdup(direntp->d_name); //TODO: CHECK
+				/*Only if we are printing long format do we call stat*/
+
+				if (listlong == 1) {
+					stat(direntp->d_name, &statbuff);
+					direntstatsp[dbuffcount].statbuff = statbuff; //TODO: WIP
+				}
+
+					direntstatsp[dbuffcount++].dname = strdup(direntp->d_name);
+				
 				}
 				
 				closedir(dirp);
@@ -109,14 +142,38 @@ int main(int argc, char *argv[]) {
 			/*Otherwise treat it as a file + save info*/
 
 			} else if (S_ISREG(statbuff.st_mode)) {
-				dnames[dnamescount++] = path;
-			}
+				
+				/*Only if we are printing long format do we call stat*/
+
+				if (listlong == 1) {
+					stat(direntp->d_name, &statbuff);
+					direntstatsp[dbuffcount].statbuff = statbuff; //TODO: WIP
+				}
+
+				direntstatsp[dbuffcount++].dname = path;
+			} 
 
 			/*Handle formatted printing*/
 			
-			for (dnamesindex = 0; dnamesindex < dnamescount; dnamesindex++) {
-				printf("%s\n", dnames[dnamesindex]);
+			for (dbuffindex = 0; dbuffindex < dbuffcount; dbuffindex++) {
+				entryname = direntstatsp[dbuffindex].dname;
+				
+				/*If -a showhidden/showall arg is not passed, we skip over this entry*/
+				
+				if (showhidden == 0 && entryname[0] == '.') {	
+					continue;
+				}
+				
+				/*Handles outcome of either -l or no -l (long format)*/
+
+				if (listlong == 0) {
+					printf("%s\n", entryname);
+				} else if (listlong == 1) {
+					//TODO: PRINT LONG FORMAT
+				}
 			}
+		} else {
+			fprintf(stderr, "%s is not a recognized file or directory...\n", path);
 		}
 
 		/*We set errno = 0 so that we can call stat and print ls without a problem if
@@ -126,75 +183,6 @@ int main(int argc, char *argv[]) {
 		argindex++;
 	} while (argindex < argc);
 
-	free(dnames);
-
-
-
-
-
-
-
-	
-	/*Check if non option arguments passed: TODO*/
-
-	/*We need to handle non-option arguments passed to ls*/
-	
-	//Start loop after all option arguments are read
-
-		/*Check if non-option argument is file or directory*/
-	
-	//	if (isfile(argv[index]) == 1) {
-			
-			/*Print file name  (in long format if -l passed in)*/
-
-	//		if (lflag == 1) {
-
-				/*TODO: print out long format using stat*/
-
-	//		} else {
-	//			printf("%s\n", argv[index]);
-	//		}
-	//	} else if (isdirectory(argv[index]) == 1) {
-
-			/*Open directory?*/
-			/*Read contents*/
-
-	//		dirp = opendir("");
-    //        if (dirp == NULL)
-    //            	return (ERROR);
-    //        len = strlen(name);
-    //        while ((dp = readdir(dirp)) != NULL) {
-    //               if (dp->d_namlen == len && strcmp(dp->d_name, name) == 0) {
-    //                       (void)closedir(dirp);
-    //                       return (FOUND);
-    //               }
-     //      }
-    //       (void)closedir(dirp);
-    //       return (NOT_FOUND);
-
-			
-			/*format depending on -a and -l*/
-				/*print out contents - subfolders and files with time*/
-			/*Close directory*/
-			/*exit gracefully*/
-				/*TODO*/
-	//	}
-	//}
-	
-	/*if no non option arguments, proceed with ls of current directory: TODO - turn to else statement*/
-
-	/* Depending on what flags we passed, we expect certain unique behavior*/
-	
-	//if (aflag) {
-	
-		/*list all*/
-	
-	//} 
-	//if (lflag) { 
-	
-		/*list long*/
-	//printf("%d\n", index);
-	//}		
-	return 0;
+	//TODO: FREE DNAME via iter AS IT IS CHAR POINTER and not stored in buffer directly
+	free(direntstatsp);
 }
-
