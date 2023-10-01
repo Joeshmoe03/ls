@@ -50,7 +50,9 @@ int main(int argc, char *argv[]) {
 
 	char* entryname;
 
-	/*Our buffer is set with a default size that can be doubled if needed later + checks if failed*/
+	/*Our buffer is set with a default size that can be doubled if needed later w/ realloc + checks if failed.
+ 	 *IMPORTANT: direntstatsp is the pointer to a buffer that holds direntstat structs (which will 
+	 *contain information about a given entry's name and statbuff)*/
 
 	struct direntstat *newdirentstatsp;
 	struct direntstat *direntstatsp = (struct direntstat*)malloc(dbuffsize * sizeof(struct direntstat));
@@ -130,7 +132,7 @@ int main(int argc, char *argv[]) {
 
 				if (listlong == 1) {
 					stat(direntp->d_name, &statbuff);
-					direntstatsp[dbuffcount].statbuff = statbuff; //TODO: WIP
+					direntstatsp[dbuffcount].statbuff = statbuff;
 				}
 
 					/*We save the name of the entry to our buffer and increment the count*/
@@ -149,7 +151,7 @@ int main(int argc, char *argv[]) {
 
 				if (listlong == 1) {
 					stat(path, &statbuff);
-					direntstatsp[dbuffcount].statbuff = statbuff; //TODO: WIP
+					direntstatsp[dbuffcount].statbuff = statbuff;
 				}
 
 				/*Finally, we add the entry name to buff and increment count of buff*/
