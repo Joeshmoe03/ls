@@ -191,7 +191,8 @@ int main(int argc, char *argv[]) {
 		argindex++;
 	} while (argindex < argc);
 
-	//TODO: FREE DNAME via iter AS IT IS CHAR POINTER and not stored in buffer directly
+	/*We must iterate over char pointers in the buffer to free them*/
+
 	for (dbuffindex = 0; dbuffindex < dbuffcount; dbuffindex++) {
 		free(direntstatsp[dbuffindex].dname);
 	}
