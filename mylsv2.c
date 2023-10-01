@@ -8,6 +8,9 @@
 #include <dirent.h>
 #include <sys/types.h>
 #include <string.h>
+#include <pwd.h>
+#include <time.h>
+#include <stdbool.h>
 
 /*A buffer containing several of these structs will allow us to track file and directory info for later use*/
 
@@ -49,9 +52,13 @@ int main(int argc, char *argv[]) {
 	/*for printing out directory entries*/
 
 	char* entryname;
+	struct passwd *user;
+	struct passwd *group;
+	struct tm *tm;
+	char timestr[BUFSIZ];
 
 	/*Our buffer is set with a default size that can be doubled if needed later w/ realloc + checks if failed.
- 	 *IMPORTANT: direntstatsp is the pointer to a buffer that holds direntstat structs (which will 
+	 *IMPORTANT: direntstatsp is the pointer to a buffer that holds direntstat structs (which will 
 	 *contain information about a given entry's name and statbuff)*/
 
 	struct direntstat *newdirentstatsp;
@@ -87,7 +94,7 @@ int main(int argc, char *argv[]) {
 	//}
 	
 	/*loop interior for both nonopt and nonoptless cases. 
- 	 *We iterate through rest of args (or do this loop at least once)*/
+	 *We iterate through rest of args (or do this loop at least once)*/
 
 	argindex = optind;
 	do {
@@ -175,7 +182,46 @@ int main(int argc, char *argv[]) {
 				if (listlong == 0) {
 					printf("%s\n", entryname);
 				} else if (listlong == 1) {
-					printf("%ld\n", direntstatsp[dbuffindex].statbuff.st_size);
+					//printf("%ld\n", direntstatsp[dbuffindex].statbuff.st_size);
+					printf((S_ISDIR(direntstatsp[dbuffindex].statbuff.st_mode) ? "d" : "-"));
+
+					//user
+					printf((S_IRUSR & direntstatsp[dbuffindex].statbuff.st_mode) ? "r" : "-");
+					printf((S_IWUSR & direntstatsp[dbuffindex].statbuff.st_mode) ? "w" : "-");
+					printf((S_IXUSR & direntstatsp[dbuffindex].statbuff.st_mode) ? "x" : "-");
+
+					//group
+					printf((S_IRGRP & direntstatsp[dbuffindex].statbuff.st_mode) ? "r" : "-");
+					printf((S_IWGRP & direntstatsp[dbuffindex].statbuff.st_mode) ? "w" : "-");
+					printf((S_IXGRP & direntstatsp[dbuffindex].statbuff.st_mode) ? "x" : "-");
+
+					//other
+					printf((S_IROTH & direntstatsp[dbuffindex].statbuff.st_mode) ? "r" : "-");
+					printf((S_IWOTH & direntstatsp[dbuffindex].statbuff.st_mode) ? "w" : "-");
+					printf((S_IXOTH & direntstatsp[dbuffindex].statbuff.st_mode) ? "x" : "-");
+				
+					/*user and group using getpwuid and passwd structure*/
+					user = getpwuid(direntstatsp[dbuffindex].statbuff.st_uid);
+					group = getpwuid(direntstatsp[dbuffindex].statbuff.st_gid);
+					printf(" %s", user->pw_name);
+					printf(" %s", group->pw_name);
+					
+					
+					/*File Size*/ //(debug)?
+
+                    printf(" %ld", statbuff.st_size);
+
+                    /*Date & Time*/ //(debug)
+
+                    //if(file)
+                    tm = localtime(&statbuff.st_atime);
+                    strftime(timestr, sizeof(timestr), "%b %d %R ", tm);
+                    printf(" %s", timestr);
+					
+					printf(" %s", entryname);
+
+					printf("\n");
+
 					//TODO: PRINT LONG FORMAT
 				}
 			}
@@ -187,7 +233,7 @@ int main(int argc, char *argv[]) {
 		}
 
 		/*We set errno = 0 so that we can call stat and print ls without a problem if
-  		  the previous path was garbage*/
+		  the previous path was garbage*/
 
 		errno = 0;	
 		argindex++;
@@ -195,9 +241,9 @@ int main(int argc, char *argv[]) {
 
 	/*We must iterate over char pointers in the buffer to free them*/
 
-	for (dbuffindex = 0; dbuffindex < dbuffcount; dbuffindex++) {
-		free(direntstatsp[dbuffindex].dname);
-	}
+	//for (dbuffindex = 0; dbuffindex < dbuffcount; dbuffindex++) {
+	//	free(direntstatsp[dbuffindex].dname);
+	//}
 
 	free(direntstatsp);
 }
