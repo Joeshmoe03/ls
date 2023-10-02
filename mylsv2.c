@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
 
 	/*Set our flags*/
 	
-	//int multiplenonopt = 0; //TODO: if your are wondering what this does, it helps format when printing later
+	//int multiplenonopt = 0; //TODO: SEE TODO NOTE BELOW
 	int nonopt = 0;
 	int showhidden = 0;
 	int listlong = 0;
@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
 
 	/*Our buffer is set with a default size that can be doubled if needed later w/ realloc + checks if failed.
 	 *IMPORTANT: direntstatsp is the pointer to a buffer that holds direntstat structs (which will 
-	 *contain information about a given entry's name and statbuff)*/
+	 *contain information about a given entry's name and statbuff/metadata)*/
 
 	struct direntstat *newdirentstatsp;
 	struct direntstat *direntstatsp = (struct direntstat*)malloc(dbuffsize * sizeof(struct direntstat));
@@ -89,12 +89,12 @@ int main(int argc, char *argv[]) {
 		nonopt = 1;
 	}
 
-	//if ((argc - optind) > 1) { //TODO:FIX FOR LATER FEATURE
+	//if ((argc - optind) > 1) { //TODO:FIX FOR LATER FEATURE. IS THERE BETTER WAY? IS NEEDED TO DETERMINE IF HEADER OVER ENTRIES IS RELEVANT ON MULTIPLE DIRS
 	//	multiplenonopt = 1;
 	//}
 	
 	/*loop interior for both nonopt and nonoptless cases. 
-	 *We iterate through rest of args (or do this loop at least once)*/
+	 *We iterate through rest of args (or do this loop at least once on current dir when no nonopt)*/
 
 	argindex = optind;
 	do {
@@ -118,7 +118,7 @@ int main(int argc, char *argv[]) {
 				dirp = opendir(path);
 				while ((direntp = readdir(dirp)) != NULL && errno == 0) {
 					
-					/*If our old buffer is full, lets make a new resized one*/
+					/*If our old buffer is full, lets make a new resized one and replace our old one*/
 
 					if (dbuffcount >= dbuffsize) {
 						dbuffsize *= 2;
@@ -166,12 +166,13 @@ int main(int argc, char *argv[]) {
 				direntstatsp[dbuffcount++].dname = path;
 			} 
 
-			/*Handle formatted printing*/
+			/*Handle formatted printing by iterating over our buffer. Buffers are nice
+			 *so that I can include sorting should I still maintain the sanity to do so*/
 			
 			for (dbuffindex = 0; dbuffindex < dbuffcount; dbuffindex++) {
 				entryname = direntstatsp[dbuffindex].dname;
 				
-				/*If -a showhidden/showall arg is not passed, we skip over this entry*/
+				/*If -a showhidden/showall arg is not passed, we skip over entries starting with "."*/
 				
 				if (showhidden == 0 && entryname[0] == '.') {	
 					continue;
@@ -184,44 +185,48 @@ int main(int argc, char *argv[]) {
 				} else if (listlong == 1) {
 					printf((S_ISDIR(direntstatsp[dbuffindex].statbuff.st_mode) ? "d" : "-"));
 
-					//user
+					/*User permissions*/					
+
 					printf((S_IRUSR & direntstatsp[dbuffindex].statbuff.st_mode) ? "r" : "-");
 					printf((S_IWUSR & direntstatsp[dbuffindex].statbuff.st_mode) ? "w" : "-");
 					printf((S_IXUSR & direntstatsp[dbuffindex].statbuff.st_mode) ? "x" : "-");
 
-					//group
+					/*Group permissions*/
+
 					printf((S_IRGRP & direntstatsp[dbuffindex].statbuff.st_mode) ? "r" : "-");
 					printf((S_IWGRP & direntstatsp[dbuffindex].statbuff.st_mode) ? "w" : "-");
 					printf((S_IXGRP & direntstatsp[dbuffindex].statbuff.st_mode) ? "x" : "-");
 
-					//other
+					/*Other permission*/
+
 					printf((S_IROTH & direntstatsp[dbuffindex].statbuff.st_mode) ? "r" : "-");
 					printf((S_IWOTH & direntstatsp[dbuffindex].statbuff.st_mode) ? "w" : "-");
 					printf((S_IXOTH & direntstatsp[dbuffindex].statbuff.st_mode) ? "x" : "-");
 				
-					/*user and group using getpwuid and passwd structure*/
+					/*User and group using getpwuid and passwd structure*/
+
 					user = getpwuid(direntstatsp[dbuffindex].statbuff.st_uid);
 					group = getpwuid(direntstatsp[dbuffindex].statbuff.st_gid);
 					printf(" %s", user->pw_name);
 					printf(" %s", group->pw_name);
 					
 					
-					/*File Size*/ //(debug)?
+					/*File Size*/
 
-                    printf(" %ld", statbuff.st_size);
+                    printf(" %ld", direntstatsp[dbuffindex].statbuff.st_size);
 
-                    /*Date & Time*/ //(debug)
+                    /*Date & Time*/
 
-                    //if(file)
-                    tm = localtime(&statbuff.st_atime);
+                    tm = localtime(&direntstatsp[dbuffindex].statbuff.st_atime);
                     strftime(timestr, sizeof(timestr), "%b %d %R ", tm);
                     printf(" %s", timestr);
 					
-					printf("%s", entryname);
+					/*Entry name and new line*/
 
+					printf("%s", entryname);
 					printf("\n");
 
-					//TODO: PRINT LONG FORMAT
+					//TODO: PRINT LONG FORMAT. I THINK IS DONE??
 				}
 			}
 		} else {
@@ -238,11 +243,13 @@ int main(int argc, char *argv[]) {
 		argindex++;
 	} while (argindex < argc);
 
-	/*We must iterate over char pointers in the buffer to free them*/
+	/*We must iterate over char pointers in the buffer to free them as they are dynamically allocated*/
 
-	//for (dbuffindex = 0; dbuffindex < dbuffcount; dbuffindex++) {
-	//	free(direntstatsp[dbuffindex].dname);
-	//} //TODO: FIX ITERATION OF BUFFER FOR FREEING STRINGS TO PREVENT MEM LEAK
+	for (dbuffindex = 0; dbuffindex < dbuffcount-1; dbuffindex++) {
+		free(direntstatsp[dbuffindex].dname);
+	}
+
+	/*We must free our buffer at the end to exit cleanly*/
 
 	free(direntstatsp);
 }
