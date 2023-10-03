@@ -10,7 +10,7 @@
 #include <string.h>
 #include <pwd.h>
 #include <time.h>
-#include <stdbool.h>
+#include <stdbool.h> //not necessary?
 
 /*A buffer containing several of these structs will allow us to track file and directory info for later use*/
 
@@ -49,9 +49,10 @@ int main(int argc, char *argv[]) {
 	int dbuffcount = 0;
 	int dbuffindex = 0;
 
-	/*for printing out directory entries*/
+	/*Setup for print formatting*/
 
 	char* entryname;
+	struct stat entrystat;
 	struct passwd *user;
 	struct passwd *group;
 	struct tm *tm;
@@ -144,7 +145,7 @@ int main(int argc, char *argv[]) {
 
 					/*We save the name of the entry to our buffer and increment the count*/
 
-					direntstatsp[dbuffcount++].dname = strdup(direntp->d_name);
+				direntstatsp[dbuffcount++].dname = strdup(direntp->d_name); //? withou up() no memory leakage but invalid free //weird indent?
 				
 				}
 				
@@ -163,7 +164,7 @@ int main(int argc, char *argv[]) {
 
 				/*Finally, we add the entry name to buff and increment count of buff*/
 
-				direntstatsp[dbuffcount++].dname = path;
+				direntstatsp[dbuffcount++].dname = strdup(path);
 			} 
 
 			/*Handle formatted printing by iterating over our buffer. Buffers are nice
@@ -171,6 +172,7 @@ int main(int argc, char *argv[]) {
 			
 			for (dbuffindex = 0; dbuffindex < dbuffcount; dbuffindex++) {
 				entryname = direntstatsp[dbuffindex].dname;
+				entrystat = direntstatsp[dbuffindex].statbuff;
 				
 				/*If -a showhidden/showall arg is not passed, we skip over entries starting with "."*/
 				
@@ -183,41 +185,44 @@ int main(int argc, char *argv[]) {
 				if (listlong == 0) {
 					printf("%s\n", entryname);
 				} else if (listlong == 1) {
-					printf((S_ISDIR(direntstatsp[dbuffindex].statbuff.st_mode) ? "d" : "-"));
+					printf((S_ISDIR(entrystat.st_mode) ? "d" : "-"));
 
 					/*User permissions*/					
 
-					printf((S_IRUSR & direntstatsp[dbuffindex].statbuff.st_mode) ? "r" : "-");
-					printf((S_IWUSR & direntstatsp[dbuffindex].statbuff.st_mode) ? "w" : "-");
-					printf((S_IXUSR & direntstatsp[dbuffindex].statbuff.st_mode) ? "x" : "-");
+					printf((S_IRUSR & entrystat.st_mode) ? "r" : "-");
+					printf((S_IWUSR & entrystat.st_mode) ? "w" : "-");
+					printf((S_IXUSR & entrystat.st_mode) ? "x" : "-");
 
 					/*Group permissions*/
 
-					printf((S_IRGRP & direntstatsp[dbuffindex].statbuff.st_mode) ? "r" : "-");
-					printf((S_IWGRP & direntstatsp[dbuffindex].statbuff.st_mode) ? "w" : "-");
-					printf((S_IXGRP & direntstatsp[dbuffindex].statbuff.st_mode) ? "x" : "-");
+					printf((S_IRGRP & entrystat.st_mode) ? "r" : "-");
+					printf((S_IWGRP & entrystat.st_mode) ? "w" : "-");
+					printf((S_IXGRP & entrystat.st_mode) ? "x" : "-");
 
 					/*Other permission*/
 
-					printf((S_IROTH & direntstatsp[dbuffindex].statbuff.st_mode) ? "r" : "-");
-					printf((S_IWOTH & direntstatsp[dbuffindex].statbuff.st_mode) ? "w" : "-");
-					printf((S_IXOTH & direntstatsp[dbuffindex].statbuff.st_mode) ? "x" : "-");
+					printf((S_IROTH & entrystat.st_mode) ? "r" : "-");
+					printf((S_IWOTH & entrystat.st_mode) ? "w" : "-");
+					printf((S_IXOTH & entrystat.st_mode) ? "x" : "-");
+
+					/*Number of hard links to the file*/
+
+					printf(" %ld", entrystat.st_nlink);
 				
 					/*User and group using getpwuid and passwd structure*/
 
-					user = getpwuid(direntstatsp[dbuffindex].statbuff.st_uid);
-					group = getpwuid(direntstatsp[dbuffindex].statbuff.st_gid);
+					user = getpwuid(entrystat.st_uid);
+					group = getpwuid(entrystat.st_gid);
 					printf(" %s", user->pw_name);
 					printf(" %s", group->pw_name);
 					
-					
 					/*File Size*/
 
-                    printf(" %ld", direntstatsp[dbuffindex].statbuff.st_size);
+                    printf(" %ld", entrystat.st_size);
 
                     /*Date & Time*/
 
-                    tm = localtime(&direntstatsp[dbuffindex].statbuff.st_atime);
+                    tm = localtime(&entrystat.st_atime);
                     strftime(timestr, sizeof(timestr), "%b %d %R ", tm);
                     printf(" %s", timestr);
 					
@@ -245,8 +250,8 @@ int main(int argc, char *argv[]) {
 
 	/*We must iterate over char pointers in the buffer to free them as they are dynamically allocated*/
 
-	for (dbuffindex = 0; dbuffindex < dbuffcount-1; dbuffindex++) {
-		free(direntstatsp[dbuffindex].dname);
+	for (dbuffindex = 0; dbuffindex < dbuffcount; dbuffindex++) {
+		free(direntstatsp[dbuffindex].dname); //only name?? //free outside of loop? //how do you run valgrind???
 	}
 
 	/*We must free our buffer at the end to exit cleanly*/
