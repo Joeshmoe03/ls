@@ -1,277 +1,315 @@
-/*ls.c*/
+/*myls.c*/
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include <sys/types.h>
-#include <dirent.h>
 #include <errno.h>
-#include <stdbool.h>
+#include <dirent.h>
+#include <sys/types.h>
+#include <string.h>
 #include <pwd.h>
 #include <time.h>
+#include <stdbool.h> //not necessary?
 
+/*A buffer containing several of these structs will allow us to track file and directory info for later use*/
 
-//TODO: Get rid of functions!!!
-//EXIT IS NOT ACCEPTABLE FOR NON-OPTION ARGUMENTS BEING WRONG
-//stat is a system call so we don't want to repeat it
-
-int isfile(const char* path) {
-	struct stat statbuff;
-
-	if (stat(path, &statbuff) != 0) {
-		fprintf(stderr, "Error, %s is not a valid file or directory", path);
-		exit(3);
-	}
-	return S_ISREG(statbuff.st_mode);
-}
-
-int isdirectory(const char* path) {
-	struct stat statbuff;
-
-	if (stat(path, &statbuff) != 0) {
-		fprintf(stderr, "Error, %s is not a valid file or directory", path);
-		exit(2);
-	}
-	return S_ISDIR(statbuff.st_mode);
-}
-
-int print_file_time(const char *pathname) {
-    struct stat statbuf;
-    struct tm *tm;
-	char timestr[BUFSIZ];
-
-	if(stat(pathname, &statbuf) == -1)
-		return -1;
-	if((tm = localtime(&statbuf.st_mtime)) == NULL)
-		return -1;
-	if(strftime(timestr, sizeof(timestr), "%Y-%m-%d %H:%M:%S", tm) == 0)
-		return -1;
-	printf("%s: %s.%09ld\n", pathname, timestr, statbuf.st_mtim.tv_nsec);
-    
-	return 0;
-
-}
+struct direntstat {
+	char* dname;
+	struct stat statbuff;	
+};
 
 int main(int argc, char *argv[]) {
+
+	/*Set our flags*/
+	
+	int multiplenonopt = 0; //TODO: SEE TODO NOTE BELOW
+	int nonopt = 0;
+	int showhidden = 0;
+	int listlong = 0;
+	
+	/*Setup for parsing and iterating non-options afterwards*/
+
+	/*extern int optind;*/ /*from getopt(), is the index of the next element to be processed in argv*/
 	int opt;
-	int aflag = 0, lflag = 0;
-	int index;	
+	int argindex;
+	
+	/*Setup for obtaining info on a file/directory path*/
+
 	struct stat statbuff;
-	//opterr = 0; disables automated error message
-
-
-	//TODO: Combine the checking of options and non options into one loop !!! by looping through all args and categorizing
-	//TODO: Change flag names
+	char* path;
 	
-	/*check arguments: use getopt() to parse and set flags depending on option*/ 	
-	//EXIT IS ACCEPTABLE FOR OPTION ARGUMENTS BEING WRONG
-	
+	/*Setup for opening directories*/
+
+	DIR* dirp;
+	struct dirent *direntp;
+
+	/*Setup for tracking our buffer containing save entry info*/
+		
+	int dbuffsize = 100; 
+	int dbuffcount = 0;
+	int dbuffindex = 0;
+	int maxcount = 0;
+
+	/*Setup for print formatting*/
+
+	char* entryname;
+	struct stat entrystat;
+	struct passwd *user;
+	struct passwd *group;
+	struct tm *tm;
+	char timestr[BUFSIZ];
+
+	/*Our buffer is set with a default size that can be doubled if needed later w/ realloc + checks if failed.
+	 *IMPORTANT: direntstatsp is the pointer to a buffer that holds direntstat structs (which will 
+	 *contain information about a given entry's name and statbuff/metadata)*/
+
+	struct direntstat *newdirentstatsp;
+	struct direntstat *direntstatsp = (struct direntstat*)malloc(dbuffsize * sizeof(struct direntstat));
+	if (direntstatsp == NULL) {
+		perror("malloc");
+		exit(1);
+	}
+
+	/*check arguments: use getopt() to parse and set flags depending on option*/
+
 	while ((opt = getopt(argc, argv, "al")) != -1) {
 		switch(opt) {
-		case 'a':
-			aflag = 1;
-			break;
-		case 'l':
-			lflag = 1;
-			break;
-		default:
-			//getopt handles error by default, no need to code error message unless we want to explicitly handle it
-			fprintf(stderr, "%s", "");
-			exit(1);
+			case 'a':
+				showhidden = 1;
+				break;
+			case 'l':
+				listlong = 1;
+				break;
+			default:
+				exit(1);
 		}
 	}
+
+	/*if some argument(s) unparsed by getopt, there exist non-option arguments*/
+
+	if (optind < argc) {
+		nonopt = 1;
+	}
+
+	if ((argc - optind) > 1) { //TODO:FIX FOR LATER FEATURE. IS THERE BETTER WAY? IS NEEDED TO DETERMINE IF HEADER OVER ENTRIES IS RELEVANT ON MULTIPLE DIRS
+		multiplenonopt = 1;
+		//TODO: Could add more flags for multiple continous file entries, multiple continuous directory file entries, 
+	}
 	
-	/*Check if non option arguments passed: TODO*/
+	/*loop interior for both nonopt and nonoptless cases. 
+	 *We iterate through rest of args (or do this loop at least once on current dir when no nonopt)*/
 
-	/*We need to handle non-option arguments passed to ls*/
-	
-	for (index = optind; index < argc; index++) {
+	argindex = optind;
+	do {
 
-		char* name = argv[index];
-	
-		/*Check if non-option argument is file or directory*/
-	
-		if (isfile(name) == 1) {
-			
-			/*Print file name  (in long format if -l passed in)*/
+		/*were any nonopts passed as arguments? If so, use the corresponding arg. If not, current dir*/
 
-			if (lflag == 1) {
+		if (nonopt == 1) {
+			path = argv[argindex];
+		} else {
+			path = ".";
+		}
 
-				/*TODO: print out long format using stat*/
+		if (stat(path, &statbuff) != -1) {
+			dbuffsize = 100;
+			dbuffindex = 0;
+			dbuffcount = 0;
 
-			} else {
-				printf("%s\n", argv[index]);
-			}
-		} else if (isdirectory(name) == 1) {
+			/*If our current path is a directory, open, read + save info to buffer, close dir*/
 
-			DIR *dirp; //openddir returns this type, which is passed on to readdir
-			struct dirent *dsp; //readdir returns this type
-
-			/*Open directory*/
-			dirp = opendir(name); // . for current directory
-
-            if (dirp == NULL) {
-				fprintf(stderr, "%s: No such file or directory:", name);
-				//exit?
-			}
-
-			/*Read contents*/
-
-			errno = 0;
-
-		// 	//Print including hidden //WORKING
-        //     while ((dsp = readdir(dirp)) != NULL && errno == 0) { //NEED THE ASSIGMENT TO HAPPEN IN THE FOR LOOP OR ELSE WE GET INFINITE LOOP
-		// 		printf("%s \n", dsp->d_name);
-        //    }
-
-		//    //Print without hidden files //Hidden files start with "." //WORKING
-		     
-		// 	while ((dsp = readdir(dirp)) != NULL && errno == 0) {
-		// 		if ((dsp->d_name[0]) != '.') {
-		// 			printf("%s \n", dsp->d_name);
-		// 			}
-		// 	}
-
-
-
-			/*LONG: Check behavior when you pass file and when you pass current directory and directory with multiple files*/
-			//for user and group name
-			struct passwd *user; 
-			struct passwd *group;
-			struct tm *tm;
-			char timestr[BUFSIZ];
-			//#define st_mtime st_mtim.tv_sec //should i not use this?
-
-			//Print with long formatting (same process for file but without having the outer loop for dsp)
-			while ((dsp = readdir(dirp)) != NULL && errno == 0) {
-				//get info about files (file by file using stat)
-				bool fileExists = (stat(dsp->d_name, &statbuff) != 0); //dsp->d_name is the file name (I WANNA USE VARs.)
-				if (fileExists) {
-
-					//get stuff
-					//gotta put all the output on one line
-
-					//for permissions use bitmasks combined with st_mode
-					//Use ternary operation: condition ? valueIfTrue : valueIfFalse
-					//& (NOT &&) for BITWISE AND
+			if (S_ISDIR(statbuff.st_mode)) {
+				dirp = opendir(path);
+				while ((direntp = readdir(dirp)) != NULL && errno == 0) {
 					
+					/*If our old buffer is full, lets make a new resized one and replace our old one*/
 
-					//if directory is specified (we want this output to be about the files in the directory)
-					//UH OH: might not actually be looping through the files
-					//my statbuff has info about directory
+					if (dbuffcount >= dbuffsize) {
+						dbuffsize *= 2;
+						newdirentstatsp = (struct direntstat*)realloc(direntstatsp, dbuffsize);
+						
+						/*Lets double check success on realloc*/
 
-					
-					/*Permissions*/
+						if (newdirentstatsp == NULL) {
+							free(direntstatsp);
+							perror("realloc");
+							exit(1);
+						}
 
-					//directory bit
-					printf((S_ISDIR(statbuff.st_mode) ? "d" : "-"));
+						direntstatsp = newdirentstatsp;
+					}
+				
+				/*Only if we are printing long format do we call stat and add to buff*/
 
-					//user
-					printf((S_IRUSR & statbuff.st_mode) ? "r" : "-");
-					printf((S_IWUSR & statbuff.st_mode) ? "w" : "-");
-					printf((S_IXUSR & statbuff.st_mode) ? "x" : "-");
-
-					//group
-					printf((S_IRGRP & statbuff.st_mode) ? "r" : "-");
-					printf((S_IWGRP & statbuff.st_mode) ? "w" : "-");
-					printf((S_IXGRP & statbuff.st_mode) ? "x" : "-");
-
-					//other
-					printf((S_IROTH & statbuff.st_mode) ? "r" : "-");
-					printf((S_IWOTH & statbuff.st_mode) ? "w" : "-");
-					printf((S_IXOTH & statbuff.st_mode) ? "x" : "-");
-
-
-					/*user and group using getpwuid and passwd structure*/
-					user = getpwuid(statbuff.st_uid);
-					group = getpwuid(statbuff.st_gid);
-					printf(" %s", user->pw_name);
-					printf(" %s", group->pw_name);
-
-
-					/*File Size*/ //(debug)?
-					
-					printf(" %ld", statbuff.st_size);
-
-					/*Date & Time*/ //(debug)
-
-					//if(file)
-					tm = localtime(&statbuff.st_atime);
-					strftime(timestr, sizeof(timestr), "%b %d %R ", tm);
-					printf(" %s", timestr);
-
-					//if(directory)
-					// tm = localtime(&statbuff.st_mtime);
-					// strftime(timestr, sizeof(timestr), "%b %d %R ", tm);
-					// printf(" %s", timestr);
-					
-					//print name (could be file or directory) - do it outside loop?
-
-					//if(file) passed
-					//printf("%s",dsp->d_name);
-
-					//if(directory)
-					printf("%s", dsp->d_name);
-
-					//update
-					//dsp = readdir(dirp);
-           		}
-
-				else {
-					//why are we getting in here first??? TWICE
-					//the two hidden files goofy
-					//but why and HOW are we pulling information from the directory???
-					//struct stat also available for directories probably, yes but are we not getting into the files of the directory??
-					//IF i want file stuff, i probably need to use dsp
-					//need to update statbuff addresss?? 
-
-					//check behavior for -a and normal
-					printf("what's going on?   ");
+				if (listlong == 1) {
+					stat(direntp->d_name, &statbuff);
+					direntstatsp[dbuffcount].statbuff = statbuff;
 				}
 
-				//dsp = readdir(dirp);
+				/*We save the name of the entry to our buffer and increment the count*/
+
+				direntstatsp[dbuffcount++].dname = strdup(direntp->d_name);
+				
+				}
+				
+				closedir(dirp);
+
+				if (multiplenonopt == 1) {
+					printf("%s:\n",path);
+				}
+
+			/*Otherwise treat it as a file + save info*/
+
+			} else if (S_ISREG(statbuff.st_mode)) {
+				
+				/*Only if we are printing long format do we call stat and save to buff*/
+
+				if (listlong == 1) {
+					stat(path, &statbuff);
+					direntstatsp[dbuffcount].statbuff = statbuff;
+				}
+
+				/*Finally, we add the entry name to buff and increment count of buff*/
+
+				direntstatsp[dbuffcount++].dname = strdup(path);
+
+				if (multiplenonopt == 1) {
+					printf("\n");
+				}
+
+
+			} 
+
+			/*Handle formatted printing by iterating over our buffer. Buffers are nice
+			 *so that I can include sorting should I still maintain the sanity to do so*/
+			
+			//can we do this outside of the if else for stat existance?
+			for (dbuffindex = 0; dbuffindex < dbuffcount; dbuffindex++) {
+				entryname = direntstatsp[dbuffindex].dname;
+				entrystat = direntstatsp[dbuffindex].statbuff;
+				
+				/*If -a showhidden/showall arg is not passed, we skip over entries starting with "."*/
+				
+				if (showhidden == 0 && entryname[0] == '.') {	
+					continue;
+				}
+				
+				/*Handles outcome of either -l or no -l (long format)*/
+
+				if (listlong == 0) {
+					printf("%s  ", entryname);
+				} else if (listlong == 1) {
+
+					/*Directory Bit*/
+					
+					printf((S_ISDIR(entrystat.st_mode) ? "d" : "-"));
+
+					/*User permissions*/					
+
+					printf((S_IRUSR & entrystat.st_mode) ? "r" : "-");
+					printf((S_IWUSR & entrystat.st_mode) ? "w" : "-");
+					printf((S_IXUSR & entrystat.st_mode) ? "x" : "-");
+
+					/*Group permissions*/
+
+					printf((S_IRGRP & entrystat.st_mode) ? "r" : "-");
+					printf((S_IWGRP & entrystat.st_mode) ? "w" : "-");
+					printf((S_IXGRP & entrystat.st_mode) ? "x" : "-");
+
+					/*Other permission*/
+
+					printf((S_IROTH & entrystat.st_mode) ? "r" : "-");
+					printf((S_IWOTH & entrystat.st_mode) ? "w" : "-");
+					printf((S_IXOTH & entrystat.st_mode) ? "x" : "-");
+
+					/*Number of hard links to the file*/
+
+					printf(" %ld", entrystat.st_nlink);
+				
+					/*User and group using getpwuid and passwd structure*/
+
+					user = getpwuid(entrystat.st_uid);
+					group = getpwuid(entrystat.st_gid);
+					printf(" %s", user->pw_name);
+					printf(" %s", group->pw_name);
+					
+					/*File Size*/
+
+                    printf(" %ld", entrystat.st_size);
+
+                    /*Date & Time*/
+
+                    tm = localtime(&entrystat.st_atime);
+                    strftime(timestr, sizeof(timestr), "%b %d %R ", tm);
+                    printf(" %s", timestr);
+					
+					/*Entry name and new line*/
+
+					printf("%s", entryname);
+					printf("\n");
+
+				}
 
 			}
-
-
-
-
-
-		    if (errno != 0){
-				//error reading directory
-		    }
-
-		    else {
-			//read correctly
-			//close it
-		    }
-		   
-
-		    //then format depending on -a and -l
-
 			
-			/*format depending on -a and -l*/
-				/*print out contents - subfolders and files with time*/
-			/*Close directory*/
-			/*exit gracefully*/
-				/*TODO*/
-		}
-	}
-	
-	/*if no non option arguments, proceed with ls of current directory: TODO - turn to else statement*/
+			// //for non-long
+			// if(argindex != argc-1 && listlong == 0) {
+			// 	printf("\n\n");
+			// }
 
-	/* Depending on what flags we passed, we expect certain unique behavior*/
-	
-	// if (aflag) {
-	
-	// 	/*list all*/
-	
-	// } 
-	// if (lflag) { 
-	
-	// 	/*list long*/
-	
-	// }		
-	// return 0;
+			// else if (argindex == argc-1 && listlong == 0){
+			// 	printf("\n");
+			// }
+			
+		} else {
+
+			/*Stat did not recognize the path, so it does not exist*/
+
+			fprintf(stderr, "%s is not a recognized file or directory!\n", path);
+		}
+
+
+/*Output formatting (spacing)*/ //kinda wonky
+
+		if(listlong == 0) {
+			if(argindex != argc-1) {
+				printf("\n");
+			}
+			else {
+				printf("\n");
+			}
+		}
+
+		else {
+			if(argindex != argc-1) {
+				printf("\n");
+			}
+		}
+
+		/*We set errno = 0 so that we can call stat and print ls without a problem if
+		  the previous path was garbage*/
+
+		errno = 0;	
+		argindex++;
+
+		/*We must iterate over char pointers in the buffer to free them as they are dynamically allocated*/
+
+		
+		maxcount = dbuffcount + maxcount;
+		
+
+		
+
+	} while (argindex < argc);
+
+	printf("%i", maxcount);
+
+	for (dbuffindex = 0; dbuffindex < maxcount+1; dbuffindex++) {
+			free(direntstatsp[dbuffindex].dname); //only name?? //free outside of loop? //how do you run valgrind???
+		}
+
+	/*We must free our buffer at the end to exit cleanly*/
+
+	free(direntstatsp);
 }
+
