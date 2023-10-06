@@ -165,7 +165,7 @@ int main(int argc, char *argv[]) {
 			
 			/*Handles outcome of either -l or no -l (long format)*/
 			if (listlong == 0) {
-				printf("%s  ", entryname);
+				printf("%s ", entryname);
 			} else if (listlong == 1) {
 
 				/*Directory Bit*/
@@ -202,7 +202,7 @@ int main(int argc, char *argv[]) {
 				tm = localtime(&entrystat.st_atime);
 				strftime(timestr, sizeof(timestr), "%b %d %R ", tm);
 				printf(" %s", timestr);
-				
+
 				/*Entry name and new line*/
 				printf("%s\n", entryname);
 
@@ -219,9 +219,11 @@ int main(int argc, char *argv[]) {
 		/*Free inside of loop to prevent memory leaks due to iteratively overwriting character pointers in our struct*/
 		for (dbuffindex = 0; dbuffindex < dbuffcount; dbuffindex++) {
 			free(direntstatsp[dbuffindex].dname);
-		}	
-
+		}
+	
 	} while (argindex < argc);
+	
+	if (listlong == 0) {printf("\n");}
 
 	/*We must free our buffer at the end to exit cleanly*/
 	free(direntstatsp);
