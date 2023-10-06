@@ -10,6 +10,7 @@
 #include <string.h>
 #include <pwd.h>
 #include <time.h>
+#include <libgen.h>
 
 /*A buffer containing several of these structs will allow us to track file and directory info for later use*/
 struct direntstat {
@@ -44,6 +45,7 @@ int main(int argc, char *argv[]) {
 	int dbuffindex = 0;
 
 	/*Setup for print formatting*/
+	int pathsize;
 	char* entryname;
 	//char* entrypath;
 	struct stat entrystat;
@@ -122,7 +124,7 @@ int main(int argc, char *argv[]) {
 						/*stat must take a relative path, so we must take our current directory and concatenate with d_names.
  						 *to do this we create char buff with a size of the theoretical path name and use snprintf to compose
 						 *relative path string formatted in buffer*/
-						int pathsize = sizeof(path) + sizeof("/") + sizeof(direntp->d_name);
+						pathsize = sizeof(path) + sizeof("/") + sizeof(direntp->d_name);
 						char entrypath[pathsize];
             			snprintf(entrypath, pathsize, "%s/%s", path, direntp->d_name);
 						stat(entrypath, &statbuff);
@@ -147,7 +149,7 @@ int main(int argc, char *argv[]) {
 				}
 
 				/*Finally, we add the entry name to buff and increment count of buff*/
-				direntstatsp[dbuffcount++].dname = strdup(path);
+				direntstatsp[dbuffcount++].dname = strdup(basename(path));
 
 			} 
 			
