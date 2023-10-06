@@ -14,7 +14,7 @@
 /*A buffer containing several of these structs will allow us to track file and directory info for later use*/
 struct direntstat {
 	char* dname;
-	struct stat statbuff;	
+	struct stat statbuff;	//
 };
 
 int main(int argc, char *argv[]) {
@@ -45,6 +45,7 @@ int main(int argc, char *argv[]) {
 
 	/*Setup for print formatting*/
 	char* entryname;
+	//char* entrypath;
 	struct stat entrystat;
 	struct passwd *user;
 	struct passwd *group;
@@ -86,7 +87,7 @@ int main(int argc, char *argv[]) {
 		
 		/*Reset buffer info*/
 		dbuffsize = 100;
-		dbuffindex = 0;
+		dbuffindex = 0;		
 		dbuffcount = 0;
 		
 		/*Were any nonopts passed as arguments? If so, use the corresponding arg. If not, current dir*/
@@ -95,38 +96,42 @@ int main(int argc, char *argv[]) {
 		} else {
 			path = ".";
 		}
+		//entrypath = path;
 
 		if (stat(path, &statbuff) != -1) {
-			
+
 			/*If our current path is a directory, open, read + save info to buffer, close dir*/
 			if (S_ISDIR(statbuff.st_mode)) {
 				dirp = opendir(path);
-				while ((direntp = readdir(dirp)) != NULL && errno == 0) {
-					
+				while ((direntp = readdir(dirp)) != NULL && errno == 0) {	
 					/*If our old buffer is full, lets make a new resized one and replace our old one*/
 					if (dbuffcount >= dbuffsize) {
 						dbuffsize *= 2;
-						direntstatsp = (struct direntstat*)realloc(direntstatsp, dbuffsize);
+						direntstatsp = (struct direntstat*)realloc(direntstatsp, dbuffsize * sizeof(struct direntstat));
 						
 						/*Lets double check success on realloc*/
 						if (direntstatsp == NULL) {
 							free(direntstatsp);
 							perror("realloc");
 							exit(1);
-						}
-						
+						}	
 					}
 				
-				/*Only if we are printing long format do we call stat and add to buff*/
-				if (listlong == 1) {
-					stat(direntp->d_name, &statbuff);
-					direntstatsp[dbuffcount].statbuff = statbuff;
-				}
+					/*Only if we are printing long format do we call stat and add to buff*/
+					if (listlong == 1) {
+						/*stat must take a relative path, so we must take our current directory and concatenate with d_names.
+ 						 *to do this we create char buff with a size of the theoretical path name and use snprintf to compose
+						 *relative path string formatted in buffer*/
+						int pathsize = sizeof(path) + sizeof("/") + sizeof(direntp->d_name);
+						char entrypath[pathsize];
+            			snprintf(entrypath, pathsize, "%s/%s", path, direntp->d_name);
+						stat(entrypath, &statbuff);
+						direntstatsp[dbuffcount].statbuff = statbuff; //buff
+					}
+					
+					/*We save the name of the entry to our buffer and increment the count*/
+					direntstatsp[dbuffcount++].dname = strdup(direntp->d_name);
 
-				/*We save the name of the entry to our buffer and increment the count*/
-
-				direntstatsp[dbuffcount++].dname = strdup(direntp->d_name);
-				
 				}
 				
 				closedir(dirp);
@@ -137,7 +142,13 @@ int main(int argc, char *argv[]) {
 				
 				/*Only if we are printing long format do we call stat and save to buff*/
 				if (listlong == 1) {
-					stat(path, &statbuff);
+					/*stat must take a relative path, so we must take our current directory and concatenate with d_names.
+ 					 *to do this we create char buff with a size of the theoretical path name and use snprintf to compose
+					 *relative path string formatted in buffer*/
+					int pathsize = sizeof(path) + sizeof("/") + sizeof(direntp->d_name);
+					char entrypath[pathsize];
+            		snprintf(entrypath, pathsize, "%s/%s", path, direntp->d_name);
+					stat(entrypath, &statbuff);
 					direntstatsp[dbuffcount].statbuff = statbuff;
 				}
 
@@ -156,7 +167,7 @@ int main(int argc, char *argv[]) {
 		 *so that I can include sorting should I still maintain the sanity to do so*/
 		for (dbuffindex = 0; dbuffindex < dbuffcount; dbuffindex++) {
 			entryname = direntstatsp[dbuffindex].dname;
-			entrystat = direntstatsp[dbuffindex].statbuff;
+			entrystat = direntstatsp[dbuffindex].statbuff; //
 			
 			/*If -a showhidden/showall arg is not passed, we skip over entries starting with "."*/
 			if (showhidden == 0 && entryname[0] == '.') {	
