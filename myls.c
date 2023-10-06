@@ -142,13 +142,7 @@ int main(int argc, char *argv[]) {
 				
 				/*Only if we are printing long format do we call stat and save to buff*/
 				if (listlong == 1) {
-					/*stat must take a relative path, so we must take our current directory and concatenate with d_names.
- 					 *to do this we create char buff with a size of the theoretical path name and use snprintf to compose
-					 *relative path string formatted in buffer*/
-					int pathsize = sizeof(path) + sizeof("/") + sizeof(direntp->d_name);
-					char entrypath[pathsize];
-            		snprintf(entrypath, pathsize, "%s/%s", path, direntp->d_name);
-					stat(entrypath, &statbuff);
+					stat(path, &statbuff);
 					direntstatsp[dbuffcount].statbuff = statbuff;
 				}
 
