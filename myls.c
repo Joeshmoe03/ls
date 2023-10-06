@@ -47,7 +47,6 @@ int main(int argc, char *argv[]) {
 	/*Setup for print formatting*/
 	int pathsize;
 	char* entryname;
-	//char* entrypath;
 	struct stat entrystat;
 	struct passwd *user;
 	struct passwd *group;
@@ -127,6 +126,8 @@ int main(int argc, char *argv[]) {
 						pathsize = sizeof(path) + sizeof("/") + sizeof(direntp->d_name);
 						char entrypath[pathsize];
             			snprintf(entrypath, pathsize, "%s/%s", path, direntp->d_name);
+
+						/*We must call stat on a relative entry path, not just on d_name, as stat has no notion of where d_name is despite opendir + save to our buff*/
 						stat(entrypath, &statbuff);
 						direntstatsp[dbuffcount].statbuff = statbuff; //buff
 					}
@@ -148,7 +149,8 @@ int main(int argc, char *argv[]) {
 					direntstatsp[dbuffcount].statbuff = statbuff;
 				}
 
-				/*Finally, we add the entry name to buff and increment count of buff*/
+				/*Finally, we add the entry name to buff and increment count of buff. Basename allows us to extract filename
+				 *from a given path. SEE basename(3)*/
 				direntstatsp[dbuffcount++].dname = strdup(basename(path));
 
 			} 
