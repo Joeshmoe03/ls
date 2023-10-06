@@ -10,12 +10,11 @@
 #include <string.h>
 #include <pwd.h>
 #include <time.h>
-#include <libgen.h>
 
 /*A buffer containing several of these structs will allow us to track file and directory info for later use*/
 struct direntstat {
 	char* dname;
-	struct stat statbuff;	//
+	struct stat statbuff;
 };
 
 int main(int argc, char *argv[]) {
@@ -47,6 +46,7 @@ int main(int argc, char *argv[]) {
 	/*Setup for print formatting*/
 	int pathsize;
 	char* entryname;
+
 	struct stat entrystat;
 	struct passwd *user;
 	struct passwd *group;
@@ -97,13 +97,18 @@ int main(int argc, char *argv[]) {
 		} else {
 			path = ".";
 		}
-		//entrypath = path;
 
 		if (stat(path, &statbuff) != -1) {
 
 			/*If our current path is a directory, open, read + save info to buffer, close dir*/
 			if (S_ISDIR(statbuff.st_mode)) {
+				
+				/*"To distinguish end of stream from an error, set errno to zero before calling readdir()"; errno will change 
+				 *if error occurs during reading*/
+				errno = 0;
 				dirp = opendir(path);
+
+				/*Loop through given directory's content*/
 				while ((direntp = readdir(dirp)) != NULL && errno == 0) {	
 					/*If our old buffer is full, lets make a new resized one and replace our old one*/
 					if (dbuffcount >= dbuffsize) {
@@ -120,14 +125,13 @@ int main(int argc, char *argv[]) {
 				
 					/*Only if we are printing long format do we call stat and add to buff*/
 					if (listlong == 1) {
-						/*stat must take a relative path, so we must take our current directory and concatenate with d_names.
+
+						/*stat must take a relative path, so we must take directory passed as argument (path) and concatenate with d_names.
  						 *to do this we create char buff with a size of the theoretical path name and use snprintf to compose
 						 *relative path string formatted in buffer*/
 						pathsize = sizeof(path) + sizeof("/") + sizeof(direntp->d_name);
 						char entrypath[pathsize];
             			snprintf(entrypath, pathsize, "%s/%s", path, direntp->d_name);
-
-						/*We must call stat on a relative entry path, not just on d_name, as stat has no notion of where d_name is despite opendir + save to our buff*/
 						stat(entrypath, &statbuff);
 						direntstatsp[dbuffcount].statbuff = statbuff; //buff
 					}
@@ -139,7 +143,6 @@ int main(int argc, char *argv[]) {
 				
 				closedir(dirp);
 
-
 			/*Otherwise treat it as a file + save info*/
 			} else if (S_ISREG(statbuff.st_mode)) {
 				
@@ -149,9 +152,8 @@ int main(int argc, char *argv[]) {
 					direntstatsp[dbuffcount].statbuff = statbuff;
 				}
 
-				/*Finally, we add the entry name to buff and increment count of buff. Basename allows us to extract filename
-				 *from a given path. SEE basename(3)*/
-				direntstatsp[dbuffcount++].dname = strdup(basename(path));
+				/*Finally, we add the entry name to buff and increment count of buff*/
+				direntstatsp[dbuffcount++].dname = strdup(path);
 
 			} 
 			
@@ -219,16 +221,13 @@ int main(int argc, char *argv[]) {
 
 		}
 
-		/*We set errno = 0 so that we can call stat and print ls without a problem if
-		 *the previous path was garbage*/
-		errno = 0;	
-		argindex++;
-
 		/*We must iterate over char pointers in the buffer to free them as they are dynamically allocated*/
 		/*Free inside of loop to prevent memory leaks due to iteratively overwriting character pointers in our struct*/
 		for (dbuffindex = 0; dbuffindex < dbuffcount; dbuffindex++) {
 			free(direntstatsp[dbuffindex].dname);
 		}
+
+		argindex++;
 	
 	} while (argindex < argc);
 	
