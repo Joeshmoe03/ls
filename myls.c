@@ -76,6 +76,9 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+	/*Multiple non-opt*/ //NEW TODO
+
+
 	/* If some argument(s) unparsed by getopt, there exist non-option arguments */
 	if (optind < argc) {
 		nonopt = 1;
@@ -109,43 +112,49 @@ int main(int argc, char *argv[]) {
 
 		/* If our current path is a directory, open, read + save info to buffer, close dir */
 		if (S_ISDIR(statbuff.st_mode)) {
-			dirp = opendir(path);
 
-			/* Loop through given directory's content */
-			while ((direntp = readdir(dirp)) != NULL && errno == 0) {	
-				/* If our old buffer is full, lets make a new resized one and replace our old one */
-				if (dbuffcount >= dbuffsize) {
-					dbuffsize *= 2;
-					direntstatsp = (struct direntstat*)realloc(direntstatsp, dbuffsize * sizeof(struct direntstat));
-					
-					/* Lets double check success on realloc */
-					if (direntstatsp == NULL) {
-						free(direntstatsp);
-						perror("realloc");
-						exit(1);						
+			/*If the directory can be opened*/
+			if((dirp = opendir(path)) != NULL) {
+
+				/* Loop through given directory's content */
+				while ((direntp = readdir(dirp)) != NULL && errno == 0) {	
+
+					/* If our old buffer is full, lets make a new resized one and replace our old one */
+					if (dbuffcount >= dbuffsize) {
+						dbuffsize *= 2;
+						direntstatsp = (struct direntstat*)realloc(direntstatsp, dbuffsize * sizeof(struct direntstat));
+						
+						/* Lets double check success on realloc */
+						if (direntstatsp == NULL) {
+							free(direntstatsp);
+							perror("realloc");
+							exit(1);						
+						}	
 					}	
-				}	
-				
-				/* Only if we are printing long format do we call stat and add to buff */
-				if (listlong == 1) {
+					
+					/* Only if we are printing long format do we call stat and add to buff */
+					if (listlong == 1) {
 
-					/* Stat must take a relative path, so we must take directory passed as argument (path) and concatenate with d_names.
- 					 * to do this we create char buff with a size of the theoretical path name and use snprintf to compose
-					 * relative path string formatted in buffer */
-					pathsize = sizeof(path) + sizeof("/") + sizeof(direntp->d_name);
-					char entrypath[pathsize];
-            		snprintf(entrypath, pathsize, "%s/%s", path, direntp->d_name);
-					stat(entrypath, &statbuff);
-					direntstatsp[dbuffcount].statbuff = statbuff;
+						/* Stat must take a relative path, so we must take directory passed as argument (path) and concatenate with d_names.
+						* to do this we create char buff with a size of the theoretical path name and use snprintf to compose
+						* relative path string formatted in buffer */
+						pathsize = sizeof(path) + sizeof("/") + sizeof(direntp->d_name);
+						char entrypath[pathsize];
+						snprintf(entrypath, pathsize, "%s/%s", path, direntp->d_name);
+						stat(entrypath, &statbuff);
+						direntstatsp[dbuffcount].statbuff = statbuff;
+					}
+					
+					/* We save the name of the entry to our buffer and increment the count */
+					direntstatsp[dbuffcount++].dname = strdup(direntp->d_name);
 				}
-				
-				/* We save the name of the entry to our buffer and increment the count */
-				direntstatsp[dbuffcount++].dname = strdup(direntp->d_name);
-			}
-				
-			closedir(dirp);
+					
+				closedir(dirp);
 
-		/* Otherwise treat it as a file + save info */
+				// if(multiplenonopt)
+				// printf("%s\n", path); //NEW TODO: Add directory header
+			}
+			/* Otherwise treat it as a file + save info */
 		} else if (S_ISREG(statbuff.st_mode)) {
 				
 			/* Only if we are printing long format do we call stat and save to buff */
