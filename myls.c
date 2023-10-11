@@ -9,7 +9,9 @@
 #include <sys/types.h>
 #include <string.h>
 #include <pwd.h>
+#include <grp.h>
 #include <time.h>
+
 
 /* A buffer containing several of these structs will allow us to track file and directory info for later use */
 struct direntstat {
@@ -49,7 +51,7 @@ int main(int argc, char *argv[]) {
 
 	struct stat entrystat;
 	struct passwd *user;
-	struct passwd *group;
+	struct group *group;
 	struct tm *tm;
 	char timestr[BUFSIZ];
 
@@ -148,6 +150,10 @@ int main(int argc, char *argv[]) {
 					/* We save the name of the entry to our buffer and increment the count */
 					direntstatsp[dbuffcount++].dname = strdup(direntp->d_name);
 				}
+
+				// if(errno!=0) {
+				// 	//error
+				// }
 					
 				closedir(dirp);
 
@@ -204,12 +210,18 @@ int main(int argc, char *argv[]) {
 				/* Number of hard links to the file */
 				printf(" %ld", entrystat.st_nlink);
 			
-				/* User and group using getpwuid and passwd structure */
-				user = getpwuid(entrystat.st_uid);
-				group = getpwuid(entrystat.st_gid);
-				printf(" %s", user->pw_name);
-				printf(" %s", group->pw_name);
-				
+				/* User */
+				errno = 0;
+				if ((user = getpwuid(entrystat.st_uid)) != NULL && errno == 0) {
+					printf(" %s", user->pw_name);
+				}
+
+				/* Group */
+				errno = 0;
+				if((group = getgrgid(entrystat.st_gid))!= NULL && errno ==0) {
+					printf(" %s", group->gr_name);
+				}
+		
 				/* File Size */
 				printf(" %ld", entrystat.st_size);
 
