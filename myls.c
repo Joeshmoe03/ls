@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	/*Multiple non-opt*/ //NEW TODO
+	/* Multiple non-opt */
 	if ((argc - optind) > 1) {
 		multiplenonopt = 1;
 	}
@@ -106,7 +106,6 @@ int main(int argc, char *argv[]) {
 	 * We iterate through rest of args (or do this loop at least once on current dir when no nonopt) */
 	argindex = optind;
 	do {
-		
 		/* Reset buffer info */
 		dbuffsize = 100;
 		dbuffindex = 0;		
@@ -120,17 +119,14 @@ int main(int argc, char *argv[]) {
 		}
 		if (stat(path, &statbuff) == -1) {
 			
+			/* Print Formatting */
 			if (optind != argindex) {
 				printf("\n");
-			} //TODO
+			}
 	
 			/* Stat did not recognize the path, so it does not exist */
 			fprintf(stderr, "%s is not a recognized file or directory!\n", path);
 			
-			//if (optind != argindex) {
-			//printf("\n"); //TODO
-			//}
-
 			/* Reset errno before next iteration for next nonopt */
 			errno = 0;
 			argindex++;
@@ -140,8 +136,9 @@ int main(int argc, char *argv[]) {
 		/* If our current path is a directory, open, read + save info to buffer, close dir */
 		if (S_ISDIR(statbuff.st_mode)) {
 			
+			/* Print Formatting */
 			if (argindex != optind) {	
-				printf("\n"); //TODO
+				printf("\n");
 			}
 
 			/* If the directory can't be opened move on to next non-opt/iteration (DO update argindex) */
@@ -190,8 +187,9 @@ int main(int argc, char *argv[]) {
 		/* Otherwise treat it as a file + save info */
 		} else if (S_ISREG(statbuff.st_mode)) {
 			
+			/* Print Formatting */
 			if (argindex != optind) {
-				printf("\n"); //TODO
+				printf("\n"); 
 			}
 
 			/* Only if we are printing long format do we call stat and save to buff */
@@ -254,19 +252,11 @@ int main(int argc, char *argv[]) {
 					printf(" %s", user->pw_name);
 				}
 
-				// else {
-				// 	printf(stderr)
-				// }
-
 				/* Group */
 				errno = 0;
 				if((group = getgrgid(entrystat.st_gid))!= NULL && errno == 0) {
 					printf(" %s", group->gr_name);
 				}
-
-				// else {
-				// 	//print error ??
-				// }
 		
 				/* File Size */
 				printf(" %ld", entrystat.st_size);
