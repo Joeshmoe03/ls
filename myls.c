@@ -37,6 +37,7 @@ int main(int argc, char *argv[]) {
 
 	/* Set our flags */
 	int nonopt = 0;
+	int multiplenonopt = 0;
 	int showhidden = 0;
 	int listlong = 0;
 	
@@ -92,6 +93,9 @@ int main(int argc, char *argv[]) {
 	}
 
 	/*Multiple non-opt*/ //NEW TODO
+	if ((argc - optind) > 1) {
+		multiplenonopt = 1;
+	}
 
 	/* If some argument(s) unparsed by getopt, there exist non-option arguments */
 	if (optind < argc) {
@@ -166,9 +170,11 @@ int main(int argc, char *argv[]) {
 			}
 				
 			closedir(dirp);
-			// if(multiplenonopt)
-			// printf("%s\n", path); //NEW TODO: Add directory header
 
+			if(multiplenonopt == 1) {
+				printf("%s:\n", path);
+			}
+		
 		/* Otherwise treat it as a file + save info */
 		} else if (S_ISREG(statbuff.st_mode)) {
 				
@@ -232,11 +238,19 @@ int main(int argc, char *argv[]) {
 					printf(" %s", user->pw_name);
 				}
 
+				// else {
+				// 	printf(stderr)
+				// }
+
 				/* Group */
 				errno = 0;
 				if((group = getgrgid(entrystat.st_gid))!= NULL && errno == 0) {
 					printf(" %s", group->gr_name);
 				}
+
+				// else {
+				// 	//print error ??
+				// }
 		
 				/* File Size */
 				printf(" %ld", entrystat.st_size);
