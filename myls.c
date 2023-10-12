@@ -20,14 +20,16 @@ struct direntstat {
 };
 
 /* This will increase our direntstatsp buffer size when needed */
-void* resizebuff(struct direntstat *buffer, int size) {
-	buffer = (struct direntstat*)realloc(buffer, size * sizeof(struct direntstat));
-	if (buffer == NULL) {
-		free(buffer);
-		perror("realloc");
-		exit(1);						
+void* resizebuff(struct direntstat *buffer, int *size, int *count) {
+	if (*count >= *size) {
+		*size *= 2;
+		buffer = (struct direntstat*)realloc(buffer, *size * sizeof(struct direntstat));
+		if (buffer == NULL) {
+			free(buffer);
+			perror("realloc");
+			exit(1);						
+		}
 	}
-
 	return buffer;
 }
 
@@ -137,12 +139,9 @@ int main(int argc, char *argv[]) {
 			/* Loop through given directory's content */
 			while ((direntp = readdir(dirp)) != NULL && errno == 0) {	
 
-				/* If our old buffer is full, lets make a new resized one and replace our old one */
-				if (dbuffcount >= dbuffsize) {
-					dbuffsize *= 2;
-					direntstatsp = resizebuff(direntstatsp, dbuffsize);
-				}
-				
+				/* If our old buffer is full, lets make a new resized one and replace the old */
+				direntstatsp = resizebuff(direntstatsp, &dbuffsize, &dbuffcount);
+
 				/* Only if we are printing long format do we call stat and add to buff */
 				if (listlong == 1) {
 
@@ -154,7 +153,8 @@ int main(int argc, char *argv[]) {
 					snprintf(entrypath, pathsize, "%s/%s", path, direntp->d_name);
 					stat(entrypath, &statbuff);
 
-					/* If our stat failed go ahead and continue to next entry WITHIN current do-while iter (don't update argindex) */
+					/* If our stat failed go ahead and continue to next entry WITHIN current while iter (don't update argindex as we are not
+ 					 * moving to next do-while iter yet) */
 					if (errno != 0) {
 						errno = 0;
 						continue;
