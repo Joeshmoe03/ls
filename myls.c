@@ -19,6 +19,18 @@ struct direntstat {
 	struct stat statbuff;
 };
 
+/* This will increase our direntstatsp buffer size when needed */
+void* resizebuff(struct direntstat *buffer, int size) {
+	buffer = (struct direntstat*)realloc(buffer, size * sizeof(struct direntstat));
+	if (buffer == NULL) {
+		free(buffer);
+		perror("realloc");
+		exit(1);						
+	}
+
+	return buffer;
+}
+
 int main(int argc, char *argv[]) {
 
 	/* Set our flags */
@@ -29,8 +41,7 @@ int main(int argc, char *argv[]) {
 	/* Setup for parsing and iterating non-options afterwards */
 	/* extern int optind; implicitly derived from getopt(), is the index of the next element to be processed in argv */
 	int opt; 
-	int argindex;
-	
+	int argindex;	
 	
 	/* Setup for obtaining info on a file/directory path */
 	struct stat statbuff;
@@ -80,7 +91,6 @@ int main(int argc, char *argv[]) {
 
 	/*Multiple non-opt*/ //NEW TODO
 
-
 	/* If some argument(s) unparsed by getopt, there exist non-option arguments */
 	if (optind < argc) {
 		nonopt = 1;
@@ -104,68 +114,77 @@ int main(int argc, char *argv[]) {
 		}
 
 		if (stat(path, &statbuff) == -1) {
+		
 			/* Stat did not recognize the path, so it does not exist */
 			fprintf(stderr, "%s is not a recognized file or directory!\n", path);
 			
 			/* Reset errno before next iteration for next nonopt */
 			errno = 0;
+			argindex++;
 			continue;
 		}
 
 		/* If our current path is a directory, open, read + save info to buffer, close dir */
 		if (S_ISDIR(statbuff.st_mode)) {
 
-			/*If the directory can be opened*/
-			if((dirp = opendir(path)) != NULL) {
-
-				/* Loop through given directory's content */
-				while ((direntp = readdir(dirp)) != NULL && errno == 0) {	
-
-					/* If our old buffer is full, lets make a new resized one and replace our old one */
-					if (dbuffcount >= dbuffsize) {
-						dbuffsize *= 2;
-						direntstatsp = (struct direntstat*)realloc(direntstatsp, dbuffsize * sizeof(struct direntstat));
-						
-						/* Lets double check success on realloc */
-						if (direntstatsp == NULL) {
-							free(direntstatsp);
-							perror("realloc");
-							exit(1);						
-						}	
-					}	
-					
-					/* Only if we are printing long format do we call stat and add to buff */
-					if (listlong == 1) {
-
-						/* Stat must take a relative path, so we must take directory passed as argument (path) and concatenate with d_names.
-						* to do this we create char buff with a size of the theoretical path name and use snprintf to compose
-						* relative path string formatted in buffer */
-						pathsize = sizeof(path) + sizeof("/") + sizeof(direntp->d_name);
-						char entrypath[pathsize];
-						snprintf(entrypath, pathsize, "%s/%s", path, direntp->d_name);
-						stat(entrypath, &statbuff);
-						direntstatsp[dbuffcount].statbuff = statbuff;
-					}
-					
-					/* We save the name of the entry to our buffer and increment the count */
-					direntstatsp[dbuffcount++].dname = strdup(direntp->d_name);
-				}
-
-				// if(errno!=0) {
-				// 	//error
-				// }
-					
-				closedir(dirp);
-
-				// if(multiplenonopt)
-				// printf("%s\n", path); //NEW TODO: Add directory header
+			/* If the directory can't be opened move on to next non-opt/iteration (DO update argindex) */
+			if((dirp = opendir(path)) == NULL && errno != 0) {
+				errno = 0;
+				argindex++;
+				continue;
 			}
-			/* Otherwise treat it as a file + save info */
+
+			/* Loop through given directory's content */
+			while ((direntp = readdir(dirp)) != NULL && errno == 0) {	
+
+				/* If our old buffer is full, lets make a new resized one and replace our old one */
+				if (dbuffcount >= dbuffsize) {
+					dbuffsize *= 2;
+					direntstatsp = resizebuff(direntstatsp, dbuffsize);
+				}
+				
+				/* Only if we are printing long format do we call stat and add to buff */
+				if (listlong == 1) {
+
+					/* Stat must take a relative path, so we must take directory passed as argument (path) and concatenate with d_names.
+					* to do this we create char buff with a size of the theoretical path name and use snprintf to compose
+					* relative path string formatted in buffer */
+					pathsize = sizeof(*path) + sizeof("/") + sizeof(direntp->d_name);
+					char entrypath[pathsize];
+					snprintf(entrypath, pathsize, "%s/%s", path, direntp->d_name);
+					stat(entrypath, &statbuff);
+
+					/* If our stat failed go ahead and continue to next entry WITHIN current do-while iter (don't update argindex) */
+					if (errno != 0) {
+						errno = 0;
+						continue;
+					}
+
+					direntstatsp[dbuffcount].statbuff = statbuff;
+				}
+				
+				/* We save the name of the entry to our buffer and increment the count */
+				direntstatsp[dbuffcount++].dname = strdup(direntp->d_name);
+			}
+				
+			closedir(dirp);
+			// if(multiplenonopt)
+			// printf("%s\n", path); //NEW TODO: Add directory header
+
+		/* Otherwise treat it as a file + save info */
 		} else if (S_ISREG(statbuff.st_mode)) {
 				
 			/* Only if we are printing long format do we call stat and save to buff */
 			if (listlong == 1) {
 				stat(path, &statbuff);
+				
+				/* If our stat failed go ahead and move on to next nonopt (DO update argindex) */
+				if (errno != 0) {
+					errno = 0;
+					argindex++;
+					continue;
+				}
+
 				direntstatsp[dbuffcount].statbuff = statbuff;
 			}
 
@@ -177,7 +196,7 @@ int main(int argc, char *argv[]) {
 		 * so that I can include sorting should I still maintain the sanity to do so */
 		for (dbuffindex = 0; dbuffindex < dbuffcount; dbuffindex++) {
 			entryname = direntstatsp[dbuffindex].dname;
-			entrystat = direntstatsp[dbuffindex].statbuff; //
+			entrystat = direntstatsp[dbuffindex].statbuff;
 			
 			/* If -a showhidden/showall arg is not passed, we skip over entries starting with "." */
 			if (showhidden == 0 && entryname[0] == '.') {	
@@ -218,7 +237,7 @@ int main(int argc, char *argv[]) {
 
 				/* Group */
 				errno = 0;
-				if((group = getgrgid(entrystat.st_gid))!= NULL && errno ==0) {
+				if((group = getgrgid(entrystat.st_gid))!= NULL && errno == 0) {
 					printf(" %s", group->gr_name);
 				}
 		
