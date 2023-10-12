@@ -132,6 +132,8 @@ int main(int argc, char *argv[]) {
 		/* If our current path is a directory, open, read + save info to buffer, close dir */
 		if (S_ISDIR(statbuff.st_mode)) {
 
+			printf("\n"); //TODO
+
 			/* If the directory can't be opened move on to next non-opt/iteration (DO update argindex) */
 			if((dirp = opendir(path)) == NULL && errno != 0) {
 				errno = 0;
@@ -177,7 +179,9 @@ int main(int argc, char *argv[]) {
 		
 		/* Otherwise treat it as a file + save info */
 		} else if (S_ISREG(statbuff.st_mode)) {
-				
+			
+			printf("\n"); //TODO
+
 			/* Only if we are printing long format do we call stat and save to buff */
 			if (listlong == 1) {
 				stat(path, &statbuff);
@@ -263,6 +267,7 @@ int main(int argc, char *argv[]) {
 				/* Entry name and new line */
 				printf("%s\n", entryname);
 			}
+		if (listlong == 0) {printf("\n");}
 		}
 
 		/* We must iterate over char pointers in the buffer to free them as they are dynamically allocated */
@@ -272,8 +277,7 @@ int main(int argc, char *argv[]) {
 		}
 		argindex++;
 	} while (argindex < argc);
-	if (listlong == 0) {printf("\n");}
-
+	
 	/* We must free our buffer at the end to exit cleanly */
 	free(direntstatsp);
 }
