@@ -114,7 +114,6 @@ int main(int argc, char *argv[]) {
 		} else {
 			path = ".";
 		}
-
 		if (stat(path, &statbuff) == -1) {
 		
 			/* Stat did not recognize the path, so it does not exist */
@@ -159,7 +158,6 @@ int main(int argc, char *argv[]) {
 						errno = 0;
 						continue;
 					}
-
 					direntstatsp[dbuffcount].statbuff = statbuff;
 				}
 				
@@ -184,7 +182,6 @@ int main(int argc, char *argv[]) {
 					argindex++;
 					continue;
 				}
-
 				direntstatsp[dbuffcount].statbuff = statbuff;
 			}
 
@@ -259,7 +256,6 @@ int main(int argc, char *argv[]) {
 		for (dbuffindex = 0; dbuffindex < dbuffcount; dbuffindex++) {
 			free(direntstatsp[dbuffindex].dname);
 		}
-
 		argindex++;
 	} while (argindex < argc);
 	if (listlong == 0) {printf("\n");}
