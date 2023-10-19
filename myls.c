@@ -12,7 +12,6 @@
 #include <grp.h>
 #include <time.h>
 
-
 /* A buffer containing several of these structs will allow us to track file and directory info for later use */
 struct direntstat {
 	char* dname;
@@ -36,9 +35,11 @@ void* resizebuff(struct direntstat *buffer, int *size, int *count) {
 /* Stat must take a relative path, so we must take directory passed as argument (path) and concatenate with d_names.
  * to do this we create char buff with a size of the theoretical path name and use snprintf to compose
  * relative path string formatted in buffer */
-char* relpath(char *path, char *d_name, int *pathsize, char *entrypath) {
-	*pathsize = sizeof(path) + sizeof("/") + sizeof(d_name);
-	snprintf(entrypath, *pathsize, "%s/%s", path, d_name);
+char* relpath(char *path, char *d_name) { 
+	int pathsize = sizeof(path) + sizeof("/") + sizeof(d_name);
+	char* entrypath;
+	entrypath = malloc(sizeof(char) * pathsize);
+	snprintf(entrypath, pathsize, "%s/%s", path, d_name);
 
 	return entrypath;
 }
@@ -70,7 +71,6 @@ int main(int argc, char *argv[]) {
 	int dbuffindex = 0;
 
 	/* Setup for print formatting */
-	int pathsize;
 	char* entryname;
 
 	struct stat entrystat;
@@ -167,18 +167,13 @@ int main(int argc, char *argv[]) {
 				/* Only if we are printing long format do we call stat and add to buff */
 				if (listlong == 1) {
 
-					/* Stat must take a relative path, so we must take directory passed as argument (path) and concatenate with d_names.
-					* to do this we create char buff with a size of the theoretical path name and use snprintf to compose
-					* relative path string formatted in buffer */
-					//pathsize = sizeof(*path) + sizeof("/") + sizeof(direntp->d_name); //don't change
-					char entrypath[pathsize]; //don't change
-					//snprintf(entrypath, pathsize, "%s/%s", path, direntp->d_name); //don't change
-
-					relpath(path, direntp->d_name, &pathsize, entrypath);
-					stat(entrypath, &statbuff); //don't change
+					/* Our function for relative path mallocs space for a character pointer holding the relative path, so we must free it.
+					   We call relpath() to retrieve the relative path as a combination of given path and d_name */					
+					char *relpathp;
+					relpathp = relpath(path, direntp->d_name);
+					stat(relpathp, &statbuff);
+					free(relpathp);
 					
-					
-
 					/* If our stat failed go ahead and continue to next entry WITHIN current while iter (don't update argindex as we are not
  					 * moving to next do-while iter yet) */
 					if (errno != 0) {
