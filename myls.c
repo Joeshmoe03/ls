@@ -33,6 +33,16 @@ void* resizebuff(struct direntstat *buffer, int *size, int *count) {
 	return buffer;
 }
 
+/* Stat must take a relative path, so we must take directory passed as argument (path) and concatenate with d_names.
+ * to do this we create char buff with a size of the theoretical path name and use snprintf to compose
+ * relative path string formatted in buffer */
+char* relpath(char *path, char *d_name, int *pathsize, char *entrypath) {
+	*pathsize = sizeof(path) + sizeof("/") + sizeof(d_name);
+	snprintf(entrypath, *pathsize, "%s/%s", path, d_name);
+
+	return entrypath;
+}
+
 int main(int argc, char *argv[]) {
 
 	/* Set our flags */
@@ -160,16 +170,21 @@ int main(int argc, char *argv[]) {
 					/* Stat must take a relative path, so we must take directory passed as argument (path) and concatenate with d_names.
 					* to do this we create char buff with a size of the theoretical path name and use snprintf to compose
 					* relative path string formatted in buffer */
-					pathsize = sizeof(*path) + sizeof("/") + sizeof(direntp->d_name);
-					char entrypath[pathsize];
-					snprintf(entrypath, pathsize, "%s/%s", path, direntp->d_name);
-					stat(entrypath, &statbuff);
+					//pathsize = sizeof(*path) + sizeof("/") + sizeof(direntp->d_name); //don't change
+					char entrypath[pathsize]; //don't change
+					//snprintf(entrypath, pathsize, "%s/%s", path, direntp->d_name); //don't change
+
+					relpath(path, direntp->d_name, &pathsize, entrypath);
+					stat(entrypath, &statbuff); //don't change
+					
+					
 
 					/* If our stat failed go ahead and continue to next entry WITHIN current while iter (don't update argindex as we are not
  					 * moving to next do-while iter yet) */
 					if (errno != 0) {
 						errno = 0;
 						continue;
+						printf("are we in here?");
 					}
 					direntstatsp[dbuffcount].statbuff = statbuff;
 				}
