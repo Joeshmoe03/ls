@@ -36,11 +36,17 @@ void* resizebuff(struct direntstat *buffer, int *size, int *count) {
  * to do this we create char buff with a size of the theoretical path name and use snprintf to compose
  * relative path string formatted in buffer */
 char* relpath(char *path, char *d_name) { 
-	int pathsize = sizeof(path) + sizeof("/") + sizeof(d_name);
+	int pathsize = strlen(path) + strlen("/") + strlen(d_name) + 1;
 	char* entrypath;
-	entrypath = malloc(sizeof(char) * pathsize);
+	
+	entrypath = (char*)malloc(pathsize);
 	snprintf(entrypath, pathsize, "%s/%s", path, d_name);
-
+	
+	if (entrypath == NULL) {
+			free(entrypath);
+			perror("malloc");
+			exit(1);
+	}
 	return entrypath;
 }
 
@@ -179,7 +185,6 @@ int main(int argc, char *argv[]) {
 					if (errno != 0) {
 						errno = 0;
 						continue;
-						printf("are we in here?");
 					}
 					direntstatsp[dbuffcount].statbuff = statbuff;
 				}
