@@ -277,7 +277,7 @@ int main(int argc, char *argv[]) {
 				printf(" %ld", entrystat.st_size);
 
 				/* Date & Time */
-				tm = localtime(&entrystat.st_atime);
+				tm = localtime(&entrystat.st_mtime);
 				strftime(timestr, sizeof(timestr), "%b %d %R ", tm);
 				printf(" %s", timestr);
 
