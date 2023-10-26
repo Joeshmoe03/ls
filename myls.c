@@ -11,6 +11,7 @@
 #include <pwd.h>
 #include <grp.h>
 #include <time.h>
+#include <libgen.h>
 
 /* A buffer containing several of these structs will allow us to track file and directory info for later use */
 struct direntstat {
@@ -144,7 +145,6 @@ int main(int argc, char *argv[]) {
 			perror("stat");
 			
 			/* Reset errno before next iteration for next nonopt */
-			printf("1");
 			errno = 0;
 			argindex++;
 			continue;
@@ -152,11 +152,6 @@ int main(int argc, char *argv[]) {
 
 		/* If our current path is a directory, open, read + save info to buffer, close dir */
 		if (S_ISDIR(statbuff.st_mode)) {
-
-			//TODO: check if this directory has read permission//
-			//if (!(S_IROTH & statbuff.st_mode)) {
-			//	perror("S_IROTH");
-			//}
 			
 			/* Print Formatting */
 			if (argindex != optind) {	
@@ -190,7 +185,6 @@ int main(int argc, char *argv[]) {
 					/* If our stat failed go ahead and continue to next entry WITHIN current while iter (don't update argindex as we are not
  					 * moving to next do-while iter yet) */
 					if (errno != 0) {
-						perror("stat");
 						errno = 0;
 						continue;
 					}
@@ -209,12 +203,12 @@ int main(int argc, char *argv[]) {
 		
 		/* Otherwise treat it as a file + save info */
 		} else if (S_ISREG(statbuff.st_mode)) {
-			
+
 			/* Print Formatting */
 			if (argindex != optind) {
 				printf("\n"); 
 			}
-
+			
 			/* Only if we are printing long format do we call stat and save to buff */
 			if (listlong == 1) {
 				stat(path, &statbuff);
@@ -227,7 +221,7 @@ int main(int argc, char *argv[]) {
 				}
 				direntstatsp[dbuffcount].statbuff = statbuff;
 			}
-
+			
 			/* Finally, we add the entry name to buff and increment count of buff */
 			direntstatsp[dbuffcount++].dname = strdup(path);
 		}
@@ -237,12 +231,12 @@ int main(int argc, char *argv[]) {
 		for (dbuffindex = 0; dbuffindex < dbuffcount; dbuffindex++) {
 			entryname = direntstatsp[dbuffindex].dname;
 			entrystat = direntstatsp[dbuffindex].statbuff;
-			
+	
 			/* If -a showhidden/showall arg is not passed, we skip over entries starting with "." */
-			if (showhidden == 0 && entryname[0] == '.') {	
-				continue;
+			if (showhidden == 0 && basename(entryname)[0] == '.') {
+				continue;	
 			}
-			
+
 			/* Handles outcome of either -l or no -l (long format) */
 			if (listlong == 0) {
 				printf("%s ", entryname);
