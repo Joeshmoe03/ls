@@ -167,11 +167,12 @@ int main(int argc, char *argv[]) {
 			}
 
 			/* Loop through given directory's content */
-			while ((direntp = readdir(dirp)) != NULL && errno == 0) {	
+			while ((direntp = readdir(dirp)) != NULL && errno == 0) {
+				memset(&statbuff., 0, sizeof(statbuff)); //TODO: determine if keep and delete other 2 TODOs
 
 				/* If our old buffer is full, lets make a new resized one and replace the old */
 				direntstatsp = resizebuff(direntstatsp, &dbuffsize, &dbuffcount);
-
+				
 				/* Only if we are printing long format do we call stat and add to buff */
 				if (listlong == 1) {
 
@@ -185,12 +186,14 @@ int main(int argc, char *argv[]) {
 					/* If our stat failed go ahead and continue to next entry WITHIN current while iter (don't update argindex as we are not
  					 * moving to next do-while iter yet) */
 					if (errno != 0) {
+						if (showhidden == 1) {perror("stat");}
+						//direntstatsp[dbuffcount++].dname = strdup(direntp->d_name); //TODO: KEEP??
 						errno = 0;
-						continue;
+						//continue; //TODO KEEP??
 					}
 					direntstatsp[dbuffcount].statbuff = statbuff;
 				}
-				
+
 				/* We save the name of the entry to our buffer and increment the count */
 				direntstatsp[dbuffcount++].dname = strdup(direntp->d_name);
 			}
@@ -232,7 +235,7 @@ int main(int argc, char *argv[]) {
 			entryname = direntstatsp[dbuffindex].dname;
 			entrystat = direntstatsp[dbuffindex].statbuff;
 	
-			/* If -a showhidden/showall arg is not passed, we skip over entries starting with "." */
+			/* If -a showhidden/showall arg is not passed, we skip over entries (relative path basenames) starting with "." */
 			if (showhidden == 0 && basename(entryname)[0] == '.') {
 				continue;	
 			}
@@ -241,7 +244,6 @@ int main(int argc, char *argv[]) {
 			if (listlong == 0) {
 				printf("%s ", entryname);
 			} else if (listlong == 1) {
-
 				/* Directory Bit */
 				printf((S_ISDIR(entrystat.st_mode) ? "d" : "-"));
 
@@ -262,19 +264,19 @@ int main(int argc, char *argv[]) {
 
 				/* Number of hard links to the file */
 				printf(" %ld", entrystat.st_nlink);
-			
-				// TODO:  In the case of getpwuid(3)/getgrgid(3) failing, should not just skip the 
-				// field but should print the numerical id instead (which is what the real ls
-				// does)
 				
-				/* User */
+				/* User: if fails prints uid */
 				if ((user = getpwuid(entrystat.st_uid)) != NULL) {
 					printf(" %s", user->pw_name);
+				} else {
+					printf(" %d", entrystat.st_uid);
 				}
 
-				/* Group */
+				/* Group: if fails prints gid */
 				if((group = getgrgid(entrystat.st_gid))!= NULL) {
 					printf(" %s", group->gr_name);
+				} else {
+					printf(" %d", entrystat.st_gid);
 				}
 		
 				/* File Size */
