@@ -141,6 +141,7 @@ int main(int argc, char *argv[]) {
 			}
 	
 			/* Stat did not recognize the path, so it does not exist */
+			//fprintf(stderr, "%s is not a recognized file or directory!\n", path);
 			perror("stat");
 			
 			/* Reset errno before next iteration for next nonopt */
@@ -153,10 +154,6 @@ int main(int argc, char *argv[]) {
 		if (S_ISDIR(statbuff.st_mode)) {
 
 			//TODO: check if this directory has read permission//
-			if (!(S_IRUSR & statbuff.st_mode)) {
-				perror("stat");
-			}
-
 			
 			/* Print Formatting */
 			if (argindex != optind) {	
