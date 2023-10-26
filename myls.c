@@ -144,6 +144,7 @@ int main(int argc, char *argv[]) {
 			perror("stat");
 			
 			/* Reset errno before next iteration for next nonopt */
+			printf("1");
 			errno = 0;
 			argindex++;
 			continue;
@@ -153,10 +154,9 @@ int main(int argc, char *argv[]) {
 		if (S_ISDIR(statbuff.st_mode)) {
 
 			//TODO: check if this directory has read permission//
-			if (!(S_IRUSR & statbuff.st_mode)) {
-				perror("stat");
-			}
-
+			//if (!(S_IROTH & statbuff.st_mode)) {
+			//	perror("S_IROTH");
+			//}
 			
 			/* Print Formatting */
 			if (argindex != optind) {	
@@ -165,6 +165,7 @@ int main(int argc, char *argv[]) {
 
 			/* If the directory can't be opened move on to next non-opt/iteration (DO update argindex) */
 			if((dirp = opendir(path)) == NULL && errno != 0) {
+				perror("opendir");
 				errno = 0;
 				argindex++;
 				continue;
