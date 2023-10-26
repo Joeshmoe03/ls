@@ -141,7 +141,8 @@ int main(int argc, char *argv[]) {
 			}
 	
 			/* Stat did not recognize the path, so it does not exist */
-			fprintf(stderr, "%s is not a recognized file or directory!\n", path);
+			//fprintf(stderr, "%s is not a recognized file or directory!\n", path);
+			perror("stat");
 			
 			/* Reset errno before next iteration for next nonopt */
 			errno = 0;
@@ -151,6 +152,8 @@ int main(int argc, char *argv[]) {
 
 		/* If our current path is a directory, open, read + save info to buffer, close dir */
 		if (S_ISDIR(statbuff.st_mode)) {
+
+			//TODO: check if this directory has read permission//
 			
 			/* Print Formatting */
 			if (argindex != optind) {	
@@ -261,15 +264,17 @@ int main(int argc, char *argv[]) {
 				/* Number of hard links to the file */
 				printf(" %ld", entrystat.st_nlink);
 			
+				// TODO:  In the case of getpwuid(3)/getgrgid(3) failing, should not just skip the 
+				// field but should print the numerical id instead (which is what the real ls
+				// does)
+				
 				/* User */
-				errno = 0;
-				if ((user = getpwuid(entrystat.st_uid)) != NULL && errno == 0) {
+				if ((user = getpwuid(entrystat.st_uid)) != NULL) {
 					printf(" %s", user->pw_name);
 				}
 
 				/* Group */
-				errno = 0;
-				if((group = getgrgid(entrystat.st_gid))!= NULL && errno == 0) {
+				if((group = getgrgid(entrystat.st_gid))!= NULL) {
 					printf(" %s", group->gr_name);
 				}
 		
