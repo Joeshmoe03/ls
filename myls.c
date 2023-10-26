@@ -190,6 +190,7 @@ int main(int argc, char *argv[]) {
 					/* If our stat failed go ahead and continue to next entry WITHIN current while iter (don't update argindex as we are not
  					 * moving to next do-while iter yet) */
 					if (errno != 0) {
+						perror("stat");
 						errno = 0;
 						continue;
 					}
