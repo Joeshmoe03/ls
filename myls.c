@@ -198,10 +198,7 @@ int main(int argc, char *argv[]) {
 	int multiplenonopt = 0;
 	int showhidden = 0;
 	int listlong = 0;
-	
-	/* Setup for parsing and iterating non-options afterwards */
-	/* extern int optind; implicitly derived from getopt(), is the index of the next element to be processed in argv */
-	//int opt; 
+	 
 	int argindex;	
 	
 	/* Setup for obtaining info on a file/directory path */
