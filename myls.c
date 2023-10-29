@@ -177,6 +177,20 @@ char* setpath(int nonopt, char *path, int argindex, char *argv[]) {
 	return path;
 }
 
+/* Attempts a malloc for our direntstatsp buffer and handles failure */
+struct direntstat* trymalloc(int dbuffsize) {
+
+	/* Our buffer is set with a default size that can be doubled if needed later w/ realloc + checks if failed.
+	 * IMPORTANT: direntstatsp is the pointer to a buffer that holds direntstat structs (which will 
+	 * contain information about a given entry's name and statbuff/metadata) */
+	struct direntstat *direntstatsp = (struct direntstat*)malloc(dbuffsize * sizeof(struct direntstat));
+	if (direntstatsp == NULL) {
+		perror("malloc");
+		exit(1);
+	}
+	return direntstatsp;
+}	
+
 int main(int argc, char *argv[]) {
 
 	/* Set our flags */
@@ -202,15 +216,7 @@ int main(int argc, char *argv[]) {
 	int dbuffsize = 100; 
 	int dbuffcount = 0;
 	int dbuffindex = 0;
-	
-	/* Our buffer is set with a default size that can be doubled if needed later w/ realloc + checks if failed.
-	 * IMPORTANT: direntstatsp is the pointer to a buffer that holds direntstat structs (which will 
-	 * contain information about a given entry's name and statbuff/metadata) */
-	struct direntstat *direntstatsp = (struct direntstat*)malloc(dbuffsize * sizeof(struct direntstat));
-	if (direntstatsp == NULL) {
-		perror("malloc");
-		exit(1);
-	}
+	struct direntstat* direntstatsp = trymalloc(dbuffsize);	
 	
 	/* Set all option flags by parsing through */
 	setoptflags(&nonopt, &multiplenonopt, &showhidden, &listlong, argc, argv);
