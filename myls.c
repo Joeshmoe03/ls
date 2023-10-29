@@ -39,7 +39,6 @@ void* resizebuff(struct direntstat *buffer, int *size, int *count) {
 char* relpath(char *path, char *d_name) { 
 	int pathsize = strlen(path) + strlen("/") + strlen(d_name) + 1;
 	char* entrypath;
-	
 	entrypath = (char*)malloc(pathsize);
 	snprintf(entrypath, pathsize, "%s/%s", path, d_name);
 	
@@ -102,8 +101,9 @@ void printls(int dbuffindex, int dbuffcount, int showhidden, int listlong, struc
 			/* User: if fails prints uid */
 			if ((user = getpwuid(entrystat.st_uid)) != NULL) {
 				printf(" %s", user->pw_name);
-			} else {
+			}else {
 				printf(" %d", entrystat.st_uid);
+				errno = 0;
 			}
 
 			/* Group: if fails prints gid */
@@ -111,6 +111,7 @@ void printls(int dbuffindex, int dbuffcount, int showhidden, int listlong, struc
 				printf(" %s", group->gr_name);
 			} else {
 				printf(" %d", entrystat.st_gid);
+				errno = 0;
 			}
 		
 			/* File Size */
@@ -124,7 +125,7 @@ void printls(int dbuffindex, int dbuffcount, int showhidden, int listlong, struc
 			/* Entry name and new line */
 			printf("%s\n", entryname);
 		}
-	if (listlong == 0) {printf("\n");}
+	if (dbuffcount-1 == dbuffindex && listlong == 0) {printf("\n");}
 	}
 	return;
 }
@@ -198,7 +199,6 @@ int main(int argc, char *argv[]) {
 	int multiplenonopt = 0;
 	int showhidden = 0;
 	int listlong = 0;
-	 
 	int argindex;	
 	
 	/* Setup for obtaining info on a file/directory path */
@@ -233,10 +233,8 @@ int main(int argc, char *argv[]) {
 		if (stat(path, &statbuff) == -1) {
 			formatnewline(argindex, optind);
 	
-			/* Stat did not recognize the path, so it does not exist */
-			perror("stat");
-			
-			/* Reset errno before next iteration for next nonopt */
+			/* Stat did not recognize the path or file, so it does not exist, move to next one */
+			fprintf(stderr, "%s, %s was not recognized...\n", strerror(errno), path);
 			errno = 0;
 			argindex++;
 			continue;
@@ -270,8 +268,7 @@ int main(int argc, char *argv[]) {
 					stat(relpathp, &statbuff);
 					free(relpathp);
 					
-					/* If our stat failed go ahead and continue to next entry WITHIN current while iter (don't update argindex as we are not
- 					 * moving to next do-while iter yet) */
+					/* If our stat failed go ahead and continue to next entry WITHIN current while iter */
 					if (errno != 0) {
 						if (showhidden == 1) {perror("stat");}
 						errno = 0;
@@ -283,35 +280,24 @@ int main(int argc, char *argv[]) {
 				direntstatsp[dbuffcount++].dname = strdup(direntp->d_name);
 			}		
 			closedir(dirp);
-
 			if(multiplenonopt == 1) {
 				printf("%s:\n", path);
 			}
 		
 		/* Otherwise treat it as a file + save info */
 		} else if (S_ISREG(statbuff.st_mode)) {
-			formatnewline(argindex, optind);
 			
-			/* Only if we are printing long format do we call stat and save to buff */
+		/* If we are printing long, since we already called stat on this file and handled errors, no need to call again */
 			if (listlong == 1) {
-				stat(path, &statbuff);
-				
-				/* If our stat failed go ahead and move on to next nonopt (DO update argindex) */
-				if (errno != 0) {
-					errno = 0;
-					argindex++;
-					continue;
-				}
 				direntstatsp[dbuffcount].statbuff = statbuff;
 			}
 			
 			/* Finally, we add the entry name to buff and increment count of buff */
 			direntstatsp[dbuffcount++].dname = strdup(path);
 		}
-		printls(dbuffindex, dbuffcount, showhidden, listlong, direntstatsp);	
+		printls(dbuffindex, dbuffcount, showhidden, listlong, direntstatsp);
 
 		/* We must iterate over char pointers in the buffer to free them as they are dynamically allocated */
-		/* Free inside of loop to prevent memory leaks due to iteratively overwriting character pointers in our struct */
 		for (dbuffindex = 0; dbuffindex < dbuffcount; dbuffindex++) {
 			free(direntstatsp[dbuffindex].dname);
 		}
