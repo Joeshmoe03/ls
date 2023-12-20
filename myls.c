@@ -99,7 +99,8 @@ void printls(int dbuffindex, int dbuffcount, int showhidden, int listlong, struc
 			printf(" %ld", entrystat.st_nlink);
 			
 			/* User: if fails prints uid */
-			if ((user = getpwuid(entrystat.st_uid)) != NULL) {
+			user = getpwuid(entrystat.st_uid);
+			if (user != NULL) {
 				printf(" %s", user->pw_name);
 			}else {
 				printf(" %d", entrystat.st_uid);
@@ -107,7 +108,8 @@ void printls(int dbuffindex, int dbuffcount, int showhidden, int listlong, struc
 			}
 
 			/* Group: if fails prints gid */
-			if((group = getgrgid(entrystat.st_gid))!= NULL) {
+			group = getgrgid(entrystat.st_gid);
+			if(group != NULL) {
 				printf(" %s", group->gr_name);
 			} else {
 				printf(" %d", entrystat.st_gid);
@@ -253,6 +255,7 @@ int main(int argc, char *argv[]) {
 			}
 
 			/* Loop through given directory's content */
+			//readallentries(showhidden, listlong, &dbuffcount, dbuffsize, path, dirp, direntstatsp);
 			while ((direntp = readdir(dirp)) != NULL && errno == 0) {
 
 				/* If our old buffer is full, lets make a new resized one and replace the old */
@@ -260,7 +263,7 @@ int main(int argc, char *argv[]) {
 				
 				/* Only if we are printing long format do we call stat and add to buff */
 				if (listlong == 1) {
-
+			
 					/* Our function for relative path mallocs space for a character pointer holding the relative path, so we must free it.
 					   We call relpath() to retrieve the relative path as a combination of given path and d_name */					
 					char *relpathp;
@@ -275,7 +278,7 @@ int main(int argc, char *argv[]) {
 					}
 					direntstatsp[dbuffcount].statbuff = statbuff;
 				}
-
+			
 				/* We save the name of the entry to our buffer and increment the count */
 				direntstatsp[dbuffcount++].dname = strdup(direntp->d_name);
 			}		
